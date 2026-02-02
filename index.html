@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Livasì Manager - Generazione Listini</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,11 +13,13 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Icone Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     
     <!-- Firebase Setup -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, collection, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot, deleteDoc, query } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = typeof __firebase_config !== 'undefined' 
@@ -104,19 +106,21 @@
             const [searchQuery, setSearchQuery] = useState('');
             const [editingProduct, setEditingProduct] = useState(null);
             const [editingListIndex, setEditingListIndex] = useState(null);
+            const [isAnagraficaEdit, setIsAnagraficaEdit] = useState(false);
+            
             const initializedRef = useRef(false);
 
             useEffect(() => {
-                const checkFB = setInterval(() => {
+                const timer = setInterval(() => {
                     if (window.fb) {
-                        clearInterval(checkFB);
+                        clearInterval(timer);
                         const { auth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, collection, db, onSnapshot, setDoc, doc, appId, initialToken } = window.fb;
                         
                         const initAuth = async () => {
                             if (initialToken) await signInWithCustomToken(auth, initialToken);
                             else await signInAnonymously(auth);
                         };
-                        initAuth().catch(err => console.error("Auth error:", err));
+                        initAuth().catch(err => console.error(err));
 
                         onAuthStateChanged(auth, (u) => {
                             if (u) {
@@ -135,22 +139,16 @@
                                         DEFAULT_PRODUCTS.forEach(item => setDoc(doc(productsCol, item.id), item));
                                     } else {
                                         setProducts(p);
-                                        // LOGICA DI INIZIALIZZAZIONE LISTINO STANDARD (17 REFERENZE)
-                                        if (!initializedRef.current) {
+                                        if (!initializedRef.current && p.length >= DEFAULT_PRODUCTS.length) {
                                             const stdIds = DEFAULT_PRODUCTS.map(i => i.id);
-                                            const foundStandard = p.filter(i => stdIds.includes(i.id));
-                                            
-                                            // Attendiamo di aver caricato tutte (o quasi tutte) le referenze prima di popolare
-                                            if (foundStandard.length >= 17) {
-                                                const mapped = foundStandard.map(i => ({
-                                                    ...i, 
-                                                    finalPrice: i.basePrice, 
-                                                    discount: 0,
-                                                    markup: i.cost > 0 ? ((i.basePrice - i.cost) / i.cost * 100).toFixed(2) : 0
-                                                }));
-                                                setSelectedProducts(mapped);
-                                                initializedRef.current = true;
-                                            }
+                                            const std = p.filter(i => stdIds.includes(i.id)).map(i => ({
+                                                ...i, 
+                                                finalPrice: i.basePrice, 
+                                                discount: 0,
+                                                markup: i.cost > 0 ? ((i.basePrice - i.cost) / i.cost * 100).toFixed(2) : 0
+                                            }));
+                                            setSelectedProducts(std);
+                                            initializedRef.current = true;
                                         }
                                     }
                                 });
@@ -158,7 +156,7 @@
                         });
                     }
                 }, 100);
-                return () => clearInterval(checkFB);
+                return () => clearInterval(timer);
             }, []);
 
             const handleFileUpload = (e, key) => {
@@ -214,93 +212,88 @@
                     }
                 };
 
-                // --- P1: FRONTESPIZIO ---
+                // P1
                 if (assets.frontespizio) { try { doc.addImage(assets.frontespizio, 'JPEG', 0, 0, 210, 297); } catch(e){} }
                 else { doc.setFillColor(20, 25, 40); doc.rect(0,0,210,297,'F'); }
-                
                 doc.setFillColor(0); doc.setGState(new doc.GState({opacity: 0.5}));
                 doc.rect(0, 70, 210, 50, 'F'); doc.setGState(new doc.GState({opacity: 1}));
                 doc.setTextColor(255); doc.setFontSize(32); doc.setFont(undefined, 'bold');
                 doc.text("Salumificio Livasì", 105, 90, {align:'center'});
-                doc.setFontSize(22); doc.setFont(undefined, 'normal');
-                doc.text("LISTINO PREZZI", 105, 105, {align:'center'});
-                
+                doc.setFontSize(22); doc.text("LISTINO PREZZI", 105, 105, {align:'center'});
                 if (clientName) {
-                    doc.setFillColor(0); doc.setGState(new doc.GState({opacity: 0.6}));
-                    doc.rect(0, 230, 210, 30, 'F'); doc.setGState(new doc.GState({opacity: 1}));
+                    doc.setGState(new doc.GState({opacity: 0.6})); doc.rect(0, 230, 210, 30, 'F'); doc.setGState(new doc.GState({opacity: 1}));
                     doc.setFontSize(14); doc.text(`Riservato a: ${clientName}`, 105, 245, {align:'center'});
                     doc.setFontSize(10); doc.text(`Data Emissione: ${dateStr}`, 105, 253, {align:'center'});
                 }
 
-                // --- P2: CONDIZIONI ---
+                // P2
                 doc.addPage(); renderHeader(doc);
-                doc.setFillColor(255); doc.setGState(new doc.GState({opacity: 0.85}));
-                doc.rect(15, 40, 180, 220, 'F'); doc.setGState(new doc.GState({opacity: 1}));
-                doc.setTextColor(40); doc.setFontSize(8.5); let y = 48;
+                doc.setFillColor(255); doc.setGState(new doc.GState({opacity: 0.85})); doc.rect(15, 40, 180, 220, 'F'); doc.setGState(new doc.GState({opacity: 1}));
+                doc.setTextColor(40); doc.setFontSize(8); let y = 48;
                 const conditions = [
                     { t: "Nel ringraziarVi dell’interesse verso i nostri prodotti, sottoponiamo alla Vostra cortese attenzione la nostra offerta.", b: false },
                     { t: "1. IL NOSTRO SERVIZIO", b: true },
-                    { t: "Il salumificio Livasì si impegna a fornire i suoi prodotti nel rispetto nei tempi e nelle modalità indicate nel presente documento. Tutti i nostri salumi subiscono una fase di affumicatura con legno di ulivo e quercia. Per tutti i prodotti vengono rispettati i tempi di stagionatura stabiliti dal know-how aziendale.", b: false },
+                    { t: "Il salumificio Livasì si impegna a fornire i suoi prodotti nel rispetto nei tempi e nelle modalità indicate nel presente documento. Tutti i nostri salumi subiscono una fase di affumicatura con legno di ulivo e quercia.", b: false },
                     { t: "2. Modalità di invio ordine", b: true },
-                    { t: "Gli ordini potranno pervenire via email ai seguenti indirizzi:\n- amministrazione@livasi.com\n- commerciale@livasi.com\no via whatsapp al numero:\n- +39 0963582222\nI nostri operatori risponderanno nel più breve tempo possibile.", b: false },
+                    { t: "Email: amministrazione@livasi.com / commerciale@livasi.com\nWhatsApp: +39 0963582222\nI nostri operatori risponderanno nel più breve tempo possibile.", b: false },
                     { t: "3. Tempi di evasione ordine", b: true },
-                    { t: "I tempi di evasione dell’ordine possono variare in base ai seguenti fattori:\n- Disponibilità del prodotto\n- Periodo di ricezione dell’ordine (periodo estivo/natalizio)\nIn condizioni normali dalla ricezione dell’ordine questo viene preparato in 1/2gg lavorativi. Spedizioni dal lunedì al mercoledì.", b: false },
+                    { t: "Normale 1/2gg lavorativi. Spedizioni Lu-Me con tempi standard di 2gg in Italia.", b: false },
                     { t: "4. Costi di spedizioni", b: true },
-                    { t: "Gratuita Italia > 30kg. Altrimenti calcolata in fattura.", b: false },
+                    { t: "Gratuita Italia > 30kg. Per carichi inferiori o estero, il costo è calcolato in fattura.", b: false },
                     { t: "5. Modalità di pagamento", b: true },
                     { t: `- ${paymentMethod}`, b: false },
                     { t: "6. Obblighi alla ricezione della merce", b: true },
-                    { t: "Accettare con riserva di controllo. Segnalare eventuali danni immediatamente sul documento del corriere e scattare foto.", b: false }
+                    { t: "Accettare con riserva di controllo. Segnalare eventuali danni immediatamente sul documento del corriere.", b: false }
                 ];
                 conditions.forEach(s => {
                     doc.setFont(undefined, s.b ? 'bold' : 'normal');
                     const lines = doc.splitTextToSize(s.t, 170);
-                    doc.text(lines, 20, y); y += (lines.length * 4.5) + 2;
+                    doc.text(lines, 20, y); y += (lines.length * 4.2) + 2;
                 });
                 renderFooter(doc);
 
-                // --- P3: LISTINO ---
+                // P3
                 doc.addPage(); renderHeader(doc);
-                doc.setFillColor(255); doc.setGState(new doc.GState({opacity: 0.85}));
-                doc.rect(15, 38, 180, 222, 'F'); doc.setGState(new doc.GState({opacity: 1}));
-                doc.setFontSize(14); doc.setFont(undefined, 'bold');
-                doc.text("LISTINO PREZZI DETTAGLIATO", 105, 45, {align:'center'});
-                const tableData = selectedProducts.map(p => listType === 'standard' ? [p.code, p.name, p.weight, p.shelfLife, p.unit, p.vat+"%", p.finalPrice.toFixed(2)+"€"] : [p.code, p.name, p.weight, p.shelfLife, p.unit, p.vat+"%", p.basePrice.toFixed(2)+"€", p.discount+"%", p.finalPrice.toFixed(2)+"€"]);
+                doc.setFillColor(255); doc.setGState(new doc.GState({opacity: 0.85})); doc.rect(15, 38, 180, 222, 'F'); doc.setGState(new doc.GState({opacity: 1}));
+                doc.setFontSize(14); doc.setFont(undefined, 'bold'); doc.text("LISTINO PREZZI DETTAGLIATO", 105, 45, {align:'center'});
+                const data = selectedProducts.map(p => listType === 'standard' ? [p.code, p.name, p.weight, p.shelfLife, p.unit, p.vat+"%", p.finalPrice.toFixed(2)+"€"] : [p.code, p.name, p.weight, p.shelfLife, p.unit, p.vat+"%", p.basePrice.toFixed(2)+"€", p.discount+"%", p.finalPrice.toFixed(2)+"€"]);
                 const head = listType === 'standard' ? ["Codice", "Prodotto", "Peso", "Shelf Life", "U.M.", "IVA", "Prezzo"] : ["Codice", "Prodotto", "Peso", "Shelf Life", "U.M.", "IVA", "Listino", "Sconto", "Finale"];
-                
                 doc.autoTable({
-                    startY: 55, head: [head], body: tableData, theme: 'striped',
-                    headStyles: { fillColor: [180, 0, 0], textColor: [255, 255, 255] },
-                    alternateRowStyles: { fillColor: [248, 248, 248] },
-                    styles: { fontSize: 7, cellPadding: 2.5 },
-                    margin: { left: 20, right: 20 },
+                    startY: 55, head: [head], body: data, theme: 'striped',
+                    headStyles: { fillColor: [180, 0, 0] }, styles: { fontSize: 7 },
                     didDrawPage: (d) => {
                         doc.setFontSize(7.5); doc.setTextColor(100); doc.setFont(undefined, 'italic');
-                        const disclaimer = "Il prezzo è da considerarsi escluso IVA. l’IVA indicata è valida per la fatturazione in Italia. Per la fatturazione estera verrà utilizzato il codice IVA relativa alla normativa di riferimento.";
-                        doc.text(doc.splitTextToSize(disclaimer, 160), 25, d.cursor.y + 10);
+                        const msg = "Il prezzo è da considerarsi escluso IVA. l’IVA indicata è valida per la fatturazione in Italia. Per la fatturazione estera verrà utilizzato il codice IVA relativa alla normativa di riferimento.";
+                        doc.text(doc.splitTextToSize(msg, 160), 25, d.cursor.y + 10);
                     }
                 });
                 renderFooter(doc);
                 doc.save(`Listino_${clientName || 'Cliente'}_${dateStr}.pdf`);
             };
 
-            const filteredProducts = useMemo(() => {
-                return products.filter(p => (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase())));
+            const saveProduct = async (p) => {
+                const { db, setDoc, doc, appId } = window.fb;
+                await setDoc(doc(db, "artifacts", appId, "public", "data", "products", p.id || crypto.randomUUID()), p);
+                setIsAnagraficaEdit(false); setEditingProduct(null);
+            };
+
+            const filteredAnagrafica = useMemo(() => {
+                return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase()));
             }, [products, searchQuery]);
 
             return (
-                <div className="min-h-screen pb-24 selection:bg-red-100">
+                <div className="min-h-screen pb-24">
                     <header className="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-50">
                         <div className="flex items-center gap-2">
                             <div className="w-10 h-10 bg-red-700 rounded-xl flex items-center justify-center text-white font-black shadow-lg">L</div>
-                            <h1 className="font-black text-slate-800 tracking-tighter text-lg leading-none">LIVASÌ MANAGER</h1>
+                            <h1 className="font-black text-slate-800 tracking-tighter text-lg leading-none uppercase">Livasì Manager</h1>
                         </div>
                         <div className="flex gap-2">
-                            <button onClick={() => setActiveTab('listino')} className={`p-3 rounded-xl transition-all ${activeTab === 'listino' ? 'bg-red-50 text-red-700 shadow-inner' : 'text-slate-400 hover:bg-slate-50'}`}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <button onClick={() => setActiveTab('listino')} className={`p-3 rounded-xl transition-all ${activeTab === 'listino' ? 'bg-red-50 text-red-700 shadow-inner' : 'text-slate-400'}`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
                             </button>
-                            <button onClick={() => setActiveTab('anagrafica')} className={`p-3 rounded-xl transition-all ${activeTab === 'anagrafica' ? 'bg-red-50 text-red-700 shadow-inner' : 'text-slate-400 hover:bg-slate-50'}`}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <button onClick={() => setActiveTab('anagrafica')} className={`p-3 rounded-xl transition-all ${activeTab === 'anagrafica' ? 'bg-red-50 text-red-700 shadow-inner' : 'text-slate-400'}`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
                             </button>
                         </div>
                     </header>
@@ -310,15 +303,15 @@
                             <div className="space-y-6 animate-fade-in">
                                 <section className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-5">
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Cliente</label>
-                                        <input type="text" className="w-full p-2 border-b font-bold text-lg outline-none focus:border-red-500 transition-colors bg-transparent" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Salumeria Rossi..." />
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Cliente</label>
+                                        <input type="text" className="w-full p-2 border-b font-bold text-lg outline-none focus:border-red-500 transition-all bg-transparent" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Inserisci nome..." />
                                     </div>
                                     <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl">
                                         <button onClick={() => setListType('standard')} className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${listType === 'standard' ? 'bg-white shadow-sm text-red-700' : 'text-slate-400'}`}>STANDARD</button>
                                         <button onClick={() => setListType('discount')} className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${listType === 'discount' ? 'bg-white shadow-sm text-red-700' : 'text-slate-400'}`}>SCONTO</button>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Metodo Pagamento</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pagamento</label>
                                         <select className="w-full p-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
                                             {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                                         </select>
@@ -327,32 +320,28 @@
 
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center px-2">
-                                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Listino ({selectedProducts.length})</h2>
-                                        <button onClick={() => setIsAddingProduct(true)} className="p-2 bg-slate-900 text-white rounded-xl shadow-lg active:scale-95 transition-all">
+                                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Listino Corrente ({selectedProducts.length})</h2>
+                                        <button onClick={() => { setIsAnagraficaEdit(false); setIsAddingProduct(true); }} className="p-2 bg-slate-900 text-white rounded-xl shadow-lg active:scale-95 transition-all">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                         </button>
                                     </div>
-                                    {selectedProducts.length === 0 ? (
-                                        <div className="p-10 text-center text-slate-300 italic text-sm">Caricamento prodotti standard...</div>
-                                    ) : (
-                                        selectedProducts.map((p, i) => (
-                                            <div key={i} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center group animate-fade-in" style={{animationDelay: `${i*20}ms`}}>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-[10px] font-bold text-red-600 uppercase">{p.code}</p>
-                                                    <h3 className="font-bold truncate text-sm text-slate-800">{p.name}</h3>
-                                                    <p className="text-[11px] text-slate-400 italic">{p.weight} • <span className="text-slate-900 not-italic font-bold">{p.finalPrice.toFixed(2)}€</span></p>
-                                                </div>
-                                                <div className="flex gap-1 ml-4 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all">
-                                                    <button onClick={() => { setEditingProduct({...p}); setEditingListIndex(i); setIsAddingProduct(true); }} className="p-2 text-slate-300 hover:text-blue-600 transition-colors">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                                    </button>
-                                                    <button onClick={() => setSelectedProducts(selectedProducts.filter((_, idx) => idx !== i))} className="p-2 text-slate-300 hover:text-red-600 transition-colors">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                                                    </button>
-                                                </div>
+                                    {selectedProducts.map((p, i) => (
+                                        <div key={i} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center group animate-fade-in" style={{animationDelay: `${i*15}ms`}}>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] font-bold text-red-600 uppercase tracking-tighter">{p.code}</p>
+                                                <h3 className="font-bold truncate text-sm text-slate-800">{p.name}</h3>
+                                                <p className="text-[11px] text-slate-400 italic">{p.weight} • <span className="text-slate-900 not-italic font-bold">{p.finalPrice.toFixed(2)}€</span></p>
                                             </div>
-                                        ))
-                                    )}
+                                            <div className="flex gap-1 ml-4 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all">
+                                                <button onClick={() => { setEditingProduct({...p}); setEditingListIndex(i); setIsAddingProduct(true); setIsAnagraficaEdit(false); }} className="p-2 text-slate-300 hover:text-blue-600 transition-colors">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                                </button>
+                                                <button onClick={() => setSelectedProducts(selectedProducts.filter((_, idx) => idx !== i))} className="p-2 text-slate-300 hover:text-red-600 transition-colors">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
 
                                 <button onClick={generatePDF} className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-10 py-5 rounded-3xl font-black shadow-2xl active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center gap-3 z-50">
@@ -362,8 +351,9 @@
                             </div>
                         ) : (
                             <div className="space-y-8 animate-fade-in">
+                                {/* SEZIONE LOGHI */}
                                 <section className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                                    <h2 className="font-black text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <h2 className="font-black text-xs uppercase tracking-widest mb-6 flex items-center gap-2 text-slate-400">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                                         Loghi e Asset PDF
                                     </h2>
@@ -382,29 +372,61 @@
                                         ))}
                                     </div>
                                 </section>
+
+                                {/* SEZIONE PRODOTTI (ANAGRAFICA) */}
+                                <section className="space-y-4">
+                                    <div className="flex justify-between items-center px-2">
+                                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Prodotti in Anagrafica</h2>
+                                        <button onClick={() => { setEditingProduct({code:'', name:'', cost:0, vat:10, unit:'Kg', weight:'', basePrice:0}); setIsAnagraficaEdit(true); }} className="p-2 bg-slate-900 text-white rounded-xl shadow-lg active:scale-95 transition-all">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        </button>
+                                    </div>
+
+                                    <div className="relative mb-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                        <input type="text" className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl outline-none font-bold shadow-sm" placeholder="Cerca prodotto..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {filteredAnagrafica.map(p => (
+                                            <div key={p.id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-3 group">
+                                                <div className="flex justify-between items-start">
+                                                    <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-3 py-1 rounded-full uppercase tracking-widest">{p.code}</span>
+                                                    <div className="flex gap-2">
+                                                        <button onClick={() => { setEditingProduct({...p}); setIsAnagraficaEdit(true); }} className="text-blue-600 p-1 hover:bg-blue-50 rounded-lg transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                                                        <button onClick={async () => { if(confirm('Eliminare?')) { const {db, deleteDoc, doc, appId} = window.fb; await deleteDoc(doc(db, "artifacts", appId, "public", "data", "products", p.id)); } }} className="text-red-600 p-1 hover:bg-red-50 rounded-lg transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+                                                    </div>
+                                                </div>
+                                                <h3 className="font-black text-slate-800 leading-tight">{p.name}</h3>
+                                                <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-50">
+                                                    <div><p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Listino</p><p className="font-black text-red-600">{p.basePrice.toFixed(2)}€</p></div>
+                                                    <div className="border-x px-2"><p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Costo</p><p className="font-bold text-slate-600">{p.cost.toFixed(2)}€</p></div>
+                                                    <div><p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Shelf Life</p><p className="font-medium text-slate-500 text-[10px]">{p.shelfLife}</p></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
                             </div>
                         )}
                     </main>
 
-                    {/* Modal Modifica/Aggiunta */}
+                    {/* MODALE MODIFICA/AGGIUNTA */}
                     {isAddingProduct && (
-                        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex items-end md:items-center justify-center p-0 md:p-6">
-                            <div className="bg-white w-full max-w-xl rounded-t-[3.5rem] md:rounded-[3.5rem] p-10 space-y-8 animate-fade-in shadow-2xl overflow-y-auto max-h-[95vh]">
+                        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex items-end md:items-center justify-center p-0 md:p-6 animate-in fade-in">
+                            <div className="bg-white w-full max-w-xl rounded-t-[3.5rem] md:rounded-[3.5rem] p-10 space-y-8 shadow-2xl overflow-y-auto max-h-[95vh] relative">
+                                <button onClick={() => { setIsAddingProduct(false); setEditingProduct(null); }} className="absolute right-8 top-8 p-2 hover:bg-slate-100 rounded-full transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                                
                                 {editingProduct ? (
-                                    <div className="space-y-8">
-                                        <div className="flex justify-between items-center">
-                                            <h3 className="font-black uppercase tracking-[0.2em] text-sm text-slate-400">Modifica Riga</h3>
-                                            <button onClick={() => { setIsAddingProduct(false); setEditingProduct(null); }} className="p-2 hover:bg-slate-100 rounded-full transition-all">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                            </button>
-                                        </div>
+                                    <div className="space-y-8 animate-fade-in">
                                         <div className="bg-red-700 p-8 rounded-[3rem] text-white shadow-2xl shadow-red-200 relative overflow-hidden">
+                                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
                                             <h4 className="font-black text-2xl leading-tight">{editingProduct.name}</h4>
                                             <p className="text-xs font-bold text-red-200 mt-2 uppercase tracking-widest">{editingProduct.code} • {editingProduct.weight}</p>
                                         </div>
                                         <div className="grid grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Prezzo (€)</label>
+                                                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Prezzo Listino (€)</label>
                                                 <input type="number" step="0.01" className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl font-black text-2xl text-red-700 outline-none focus:ring-4 focus:ring-red-500/10" value={editingProduct.basePrice} onChange={e => {
                                                     const v = parseFloat(e.target.value) || 0;
                                                     const m = editingProduct.cost > 0 ? ((v - editingProduct.cost) / editingProduct.cost * 100).toFixed(2) : 0;
@@ -412,7 +434,7 @@
                                                 }} />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Rincaro (%)</label>
+                                                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Rincaro (%)</label>
                                                 <input type="number" className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl font-black text-2xl outline-none focus:ring-4 focus:ring-red-500/10" value={editingProduct.markup} onChange={e => {
                                                     const val = parseFloat(e.target.value) || 0;
                                                     const p = editingProduct.cost * (1 + val/100);
@@ -421,8 +443,8 @@
                                             </div>
                                             {listType === 'discount' && (
                                                 <div className="col-span-2 space-y-2 bg-blue-50/50 p-6 rounded-[2.5rem] border border-blue-100">
-                                                    <label className="text-[10px] font-black text-blue-500 uppercase ml-2">Sconto Riservato (%)</label>
-                                                    <input type="number" className="w-full p-5 bg-white border border-blue-200 rounded-3xl font-black text-2xl text-blue-700 outline-none focus:ring-4 focus:ring-blue-500/10" value={editingProduct.discount} onChange={e => setEditingProduct({...editingProduct, discount: parseFloat(e.target.value) || 0})} />
+                                                    <label className="text-[10px] font-black text-blue-500 uppercase ml-2 tracking-widest text-center block">Sconto Riservato (%)</label>
+                                                    <input type="number" className="w-full p-5 bg-white border border-blue-200 rounded-3xl font-black text-2xl text-blue-700 outline-none text-center" value={editingProduct.discount} onChange={e => setEditingProduct({...editingProduct, discount: parseFloat(e.target.value) || 0})} />
                                                 </div>
                                             )}
                                         </div>
@@ -438,22 +460,47 @@
                                         }} className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all">CONFERMA</button>
                                     </div>
                                 ) : (
-                                    <div className="space-y-6">
-                                        <div className="flex justify-between items-center">
-                                            <h3 className="font-black uppercase tracking-widest text-sm text-slate-400">Cerca Prodotto</h3>
-                                            <button onClick={() => setIsAddingProduct(false)}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                                    <div className="space-y-6 animate-fade-in">
+                                        <h3 className="font-black uppercase tracking-widest text-sm text-slate-400">Aggiungi dal Listino</h3>
+                                        <div className="relative">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                            <input type="text" className="w-full pl-12 pr-4 py-4 bg-slate-100 border-none rounded-2xl outline-none font-bold" placeholder="Cerca prodotto..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                                         </div>
-                                        <input type="text" className="w-full p-4 bg-slate-100 border-none rounded-2xl outline-none font-bold" placeholder="Nome o codice..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                                         <div className="space-y-2 max-h-[50vh] overflow-y-auto custom-scroll pr-2">
-                                            {filteredProducts.map(p => (
+                                            {products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(p => (
                                                 <button key={p.id} onClick={() => setEditingProduct({...p, discount: 0, markup: p.cost > 0 ? ((p.basePrice - p.cost) / p.cost * 100).toFixed(2) : 0})} className="w-full flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-red-500 transition-all text-left group">
                                                     <div><p className="text-[9px] font-black text-slate-300 uppercase mb-1">{p.code}</p><h4 className="font-black text-slate-800 group-hover:text-red-700">{p.name}</h4></div>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:stroke-red-200"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:stroke-red-300 group-hover:translate-x-1 transition-all"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* EDITOR ANAGRAFICA */}
+                    {isAnagraficaEdit && editingProduct && (
+                        <div className="fixed inset-0 z-[110] bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in">
+                            <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl flex flex-col max-h-[90vh]">
+                                <div className="p-8 border-b border-slate-50 flex justify-between items-center">
+                                    <h3 className="font-black text-slate-800 text-xl uppercase tracking-tighter">Modifica Prodotto Anagrafica</h3>
+                                    <button onClick={() => { setIsAnagraficaEdit(false); setEditingProduct(null); }} className="p-2 border border-slate-100 rounded-full hover:bg-slate-50"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                                </div>
+                                <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 custom-scroll">
+                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Codice</label><input type="text" value={editingProduct.code} onChange={e => setEditingProduct({...editingProduct, code: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-red-500 font-bold" /></div>
+                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Peso</label><input type="text" value={editingProduct.weight} onChange={e => setEditingProduct({...editingProduct, weight: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-red-500 font-bold" /></div>
+                                    <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nome Prodotto</label><input type="text" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-red-500 font-bold" /></div>
+                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Shelf Life</label><input type="text" value={editingProduct.shelfLife} onChange={e => setEditingProduct({...editingProduct, shelfLife: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-red-500 font-bold" /></div>
+                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">U.M.</label><input type="text" value={editingProduct.unit} onChange={e => setEditingProduct({...editingProduct, unit: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-red-500 font-bold" /></div>
+                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Costo (€)</label><input type="number" step="0.01" value={editingProduct.cost} onChange={e => setEditingProduct({...editingProduct, cost: parseFloat(e.target.value) || 0})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-red-500 font-bold" /></div>
+                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Prezzo Base (€)</label><input type="number" step="0.01" value={editingProduct.basePrice} onChange={e => setEditingProduct({...editingProduct, basePrice: parseFloat(e.target.value) || 0})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-red-500 font-bold" /></div>
+                                </div>
+                                <div className="p-8 border-t bg-slate-50/50 flex gap-4">
+                                    <button onClick={() => { setIsAnagraficaEdit(false); setEditingProduct(null); }} className="flex-1 py-4 border border-slate-200 rounded-2xl font-black text-slate-500 uppercase tracking-widest text-sm">Annulla</button>
+                                    <button onClick={() => saveProduct(editingProduct)} className="flex-1 py-4 bg-red-700 text-white rounded-2xl font-black shadow-xl shadow-red-200 uppercase tracking-widest text-sm active:scale-95 transition-all">Salva</button>
+                                </div>
                             </div>
                         </div>
                     )}
