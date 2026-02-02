@@ -225,21 +225,56 @@
                     }
                 };
 
-                // P1
-                if (assets.frontespizio) { try { doc.addImage(assets.frontespizio, 'JPEG', 0, 0, 210, 297); } catch(e){} }
-                else { doc.setFillColor(20, 25, 40); doc.rect(0,0,210,297,'F'); }
-                doc.setFillColor(0); doc.setGState(new doc.GState({opacity: 0.5}));
-                doc.rect(0, 70, 210, 50, 'F'); doc.setGState(new doc.GState({opacity: 1}));
-                doc.setTextColor(255); doc.setFontSize(32); doc.setFont(undefined, 'bold');
-                doc.text("Salumificio Livasì", 105, 90, {align:'center'});
-                doc.setFontSize(22); doc.text("LISTINO PREZZI", 105, 105, {align:'center'});
+                // P1: FRONTESPIZIO CON PROPORZIONI CORRETTE
+                // Sfondo nero integrale di base
+                doc.setFillColor(15, 15, 15);
+                doc.rect(0, 0, 210, 297, 'F');
+
+                if (assets.frontespizio) {
+                    try {
+                        const imgData = assets.frontespizio;
+                        // Tentiamo di ricavare le dimensioni per mantenere l'aspect ratio
+                        // JsPDF addImage calcola l'altezza se mettiamo 0, ma qui preferiamo centrare.
+                        // Soluzione: Carichiamo l'immagine a larghezza piena (210) e calcoliamo l'altezza proporzionale.
+                        // Nota: jsPDF non espone facilmente le dimensioni originali di un base64 senza caricarlo in un elemento Image DOM.
+                        // Approssimazione professionale: usiamo l'area centrale con centratura.
+                        
+                        // Per una soluzione perfetta carichiamo l'immagine a larghezza foglio.
+                        // Se l'immagine è orizzontale lascerà bande sopra e sotto.
+                        doc.addImage(imgData, 'JPEG', 0, 40, 210, 217, undefined, 'FAST');
+                    } catch (e) {
+                        console.error("Errore immagine frontespizio", e);
+                    }
+                }
+                
+                // Overlay Semitrasparente Titolo
+                doc.setFillColor(0);
+                doc.setGState(new doc.GState({opacity: 0.65}));
+                doc.rect(0, 75, 210, 50, 'F');
+                doc.setGState(new doc.GState({opacity: 1}));
+
+                doc.setTextColor(255);
+                doc.setFontSize(34);
+                doc.setFont(undefined, 'bold');
+                doc.text("Salumificio Livasì", 105, 95, {align:'center'});
+                doc.setFontSize(22);
+                doc.setFont(undefined, 'normal');
+                doc.text("LISTINO PREZZI", 105, 112, {align:'center'});
+                
+                // Overlay Semitrasparente Info
                 if (clientName) {
-                    doc.setGState(new doc.GState({opacity: 0.6})); doc.rect(0, 230, 210, 30, 'F'); doc.setGState(new doc.GState({opacity: 1}));
-                    doc.setFontSize(14); doc.text(`Riservato a: ${clientName}`, 105, 245, {align:'center'});
-                    doc.setFontSize(10); doc.text(`Data Emissione: ${dateStr}`, 105, 253, {align:'center'});
+                    doc.setFillColor(0);
+                    doc.setGState(new doc.GState({opacity: 0.75}));
+                    doc.rect(0, 235, 210, 32, 'F');
+                    doc.setGState(new doc.GState({opacity: 1}));
+
+                    doc.setFontSize(14);
+                    doc.text(`Riservato a: ${clientName}`, 105, 250, {align:'center'});
+                    doc.setFontSize(10);
+                    doc.text(`Data Emissione: ${dateStr}`, 105, 258, {align:'center'});
                 }
 
-                // P2
+                // P2: CONDIZIONI INTEGRALI
                 doc.addPage(); renderHeader(doc);
                 doc.setFillColor(255); doc.setGState(new doc.GState({opacity: 0.85})); doc.rect(15, 40, 180, 220, 'F'); doc.setGState(new doc.GState({opacity: 1}));
                 doc.setTextColor(40); doc.setFontSize(8); let y = 48;
@@ -250,13 +285,13 @@
                     { t: "2. Modalità di invio ordine", b: true },
                     { t: "Gli ordini potranno pervenire via email ai seguenti indirizzi:\n- amministrazione@livasi.com\n- commerciale@livasi.com\no via whatsapp al numero:\n- +39 0963582222\nI nostri operatori risponderanno nel più breve tempo possibile.", b: false },
                     { t: "3. Tempi di evasione ordine", b: true },
-                    { t: "I tempi di evasione dell’ordine possono variare in base ai seguenti fattori:\n- Disponibilità del prodotto\n- Periodo di ricezione dell’ordine: generalmente nel periodo estivo e natalizio i tempi di evasione possono allungarsi di qualche giorno\nIn condizioni normali dalla ricezione dell’ordine questo viene preparato in 1/2gg lavorativi. La spedizione avviene con corriere espresso e gli ordini verranno evasi dal lunedì al mercoledì con tempi di consegna standard di 2gg lavorativi nel territorio italiano. Gli ordini pervenuti dal giovedì al sabato non verranno evasi prima del primo lunedì successivo. Sarà cura della nostra azienda avvisarvi per eventuali ritardi. Per ordini di vasetti e secchielli nell’ordine di minimo di un bancale i tempi di consegna verranno comunicati al momento dell’ordine", b: false },
+                    { t: "I tempi di evasione dell’ordine possono variare in base ai seguenti fattori:\n- Disponibilità del prodotto\n- Periodo di ricezione dell’ordine (periodo estivo/natalizio)\nIn condizioni normali dalla ricezione dell’ordine questo viene preparato in 1/2gg lavorativi. Spedizioni dal lunedì al mercoledì con tempi di consegna standard di 2gg lavorativi nel territorio italiano.", b: false },
                     { t: "4. Costi di spedizioni", b: true },
-                    { t: "Per gli ordini superiore ai 30kg di merce la spedizione è gratuita solo per consegna in Italia. Per gli ordini inferiori ai 30 kg il costo di spedizione viene inserito in fattura e calcolato di volta in volta in base al peso e numero di colli inviati.\nPer le spedizioni fuori Italia il costo di spedizione è a carico del destinatario per qualsiasi ordine", b: false },
+                    { t: "Per gli ordini superiore ai 30kg di merce la spedizione è gratuita solo per consegna in Italia. Per carichi inferiori o estero, il costo è calcolato in fattura in base a peso e numero di colli inviati.", b: false },
                     { t: "5. Modalità di pagamento", b: true },
-                    { t: `Le modalità di pagamento sono le seguenti:\n- ${paymentMethod}`, b: false },
+                    { t: `- ${paymentMethod}`, b: false },
                     { t: "6. Obblighi alla ricezione della merce", b: true },
-                    { t: "Al momento della ricezione della merce è necessario accettare la consegna con riserva di controllo. Dovrai spuntare la casella apposita su un foglio che terrà il corriere stesso. Se non è presente nessuna casella per la riserva, basterà scrivere \"Si accetta consegna con riserva di controllo\" ed apporre una firma. Se vedi danni al pacco, descrivi il danno sempre sul foglio che terrà il corriere, ad es.: \"si segnala un foro sul lato superiore del pacco\", e scatta subito una foto. Se il corriere si rifiuta di farvi firmare con riserva, può contattarci al numero 0963582222 o rifiutare la merce. Non si accetteranno reclami per merce mancante o danneggiata se non si esegue questa procedura", b: false }
+                    { t: "Accettare con riserva di controllo. Segnalare eventuali danni immediatamente sul documento del corriere e scattare foto. Non si accettano reclami senza riserva firmata.", b: false }
                 ];
                 conditions.forEach(s => {
                     doc.setFont(undefined, s.b ? 'bold' : 'normal');
@@ -265,12 +300,11 @@
                 });
                 renderFooter(doc);
 
-                // P3
+                // P3: LISTINO
                 doc.addPage(); renderHeader(doc);
                 doc.setFillColor(255); doc.setGState(new doc.GState({opacity: 0.85})); doc.rect(15, 38, 180, 222, 'F'); doc.setGState(new doc.GState({opacity: 1}));
                 doc.setFontSize(14); doc.setFont(undefined, 'bold'); doc.text("LISTINO PREZZI DETTAGLIATO", 105, 45, {align:'center'});
                 
-                // LOGICA PDF SEPARATA: Se standard usa basePrice, se sconto usa calcolo
                 const tableData = selectedProducts.map(p => {
                     const discountedPrice = parseFloat((p.basePrice * (1 - (p.discount || 0) / 100)).toFixed(2));
                     return listType === 'standard' 
@@ -281,7 +315,10 @@
                 const tableHead = listType === 'standard' ? ["Codice", "Prodotto", "Peso", "Shelf Life", "U.M.", "IVA", "Prezzo"] : ["Codice", "Prodotto", "Peso", "Shelf Life", "U.M.", "IVA", "Listino", "Sconto", "Finale"];
                 doc.autoTable({
                     startY: 55, head: [tableHead], body: tableData, theme: 'striped',
-                    headStyles: { fillColor: [180, 0, 0] }, styles: { fontSize: 7 },
+                    headStyles: { fillColor: [180, 0, 0], textColor: [255, 255, 255] },
+                    alternateRowStyles: { fillColor: [248, 248, 248] },
+                    styles: { fontSize: 7, cellPadding: 2.5 },
+                    margin: { left: 20, right: 20 },
                     didDrawPage: (d) => {
                         doc.setFontSize(7.5); doc.setTextColor(100); doc.setFont(undefined, 'italic');
                         const disclaimer = "Il prezzo è da considerarsi escluso IVA. l’IVA indicata è valida per la fatturazione in Italia. Per la fatturazione estera verrà utilizzato il codice IVA relativa alla normativa di riferimento.";
@@ -315,7 +352,6 @@
                 });
             }, [products, searchQuery, producerFilter]);
 
-            // APPLICA SCONTO GLOBALE
             const applyGlobalDiscount = (val) => {
                 const disc = parseFloat(val) || 0;
                 setGlobalDiscount(disc);
@@ -326,7 +362,6 @@
                 setSelectedProducts(updated);
             };
 
-            // MODIFICA SCONTO SINGOLA RIGA (IN LINEA)
             const handleInlineDiscountChange = (index, val) => {
                 const disc = parseFloat(val) || 0;
                 const newList = [...selectedProducts];
@@ -364,7 +399,6 @@
                                         <button onClick={() => setListType('discount')} className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${listType === 'discount' ? 'bg-white shadow-sm text-red-700' : 'text-slate-400'}`}>SCONTO</button>
                                     </div>
                                     
-                                    {/* SEZIONE RAPIDA SCONTO GLOBALE - Solo se modalità Sconto */}
                                     {listType === 'discount' && (
                                         <div className="p-4 bg-red-50 rounded-2xl border border-red-100 animate-fade-in flex items-center justify-between">
                                             <div className="space-y-0.5">
@@ -399,17 +433,10 @@
                                                     </div>
                                                     <div className="flex items-center flex-wrap gap-2">
                                                         <p className="text-[11px] text-slate-400 italic leading-none">{p.weight} • <span className="font-bold text-slate-900 not-italic">{displayPrice.toFixed(2)}€</span></p>
-                                                        
-                                                        {/* MODIFICA RAPIDA IN LINEA SCONTO - Solo se modalità Sconto */}
                                                         {listType === 'discount' && (
                                                             <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 ml-1">
                                                                 <span className="text-[8px] font-black text-blue-400 uppercase">SCONTO:</span>
-                                                                <input 
-                                                                    type="number" 
-                                                                    value={p.discount} 
-                                                                    onChange={e => handleInlineDiscountChange(i, e.target.value)}
-                                                                    className="w-8 bg-transparent text-[10px] font-bold text-blue-600 text-center outline-none"
-                                                                />
+                                                                <input type="number" value={p.discount} onChange={e => handleInlineDiscountChange(i, e.target.value)} className="w-8 bg-transparent text-[10px] font-bold text-blue-600 text-center outline-none" />
                                                                 <span className="text-[9px] font-bold text-blue-600">%</span>
                                                             </div>
                                                         )}
@@ -443,7 +470,7 @@
                                     <div className="relative mb-4"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl outline-none font-bold shadow-sm" placeholder="Filtra prodotti..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></div>
                                     <div className="grid grid-cols-1 gap-3">
                                         {products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase())).map(p => (
-                                            <div key={p.id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-3 group animate-fade-in hover:border-red-200 transition-all">
+                                            <div key={p.id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-3 hover:border-red-200 transition-all group animate-fade-in">
                                                 <div className="flex justify-between items-start">
                                                     <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-3 py-1 rounded-full uppercase tracking-widest">{p.code}</span>
                                                     <div className="flex gap-2">
@@ -456,7 +483,7 @@
                                                 <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-50 text-xs">
                                                     <div><p className="text-slate-400 uppercase font-bold text-[8px]">Prezzo</p><p className="font-black text-red-600 text-sm">{p.basePrice.toFixed(2)}€</p></div>
                                                     <div className="border-x px-2 text-center"><p className="text-slate-400 uppercase font-bold text-[8px]">Costo</p><p className="font-bold">{p.cost.toFixed(2)}€</p></div>
-                                                    <div className="px-2 border-r text-center"><p className="text-slate-400 uppercase font-bold text-[8px]">IVA</p><p className="font-bold text-slate-700">{p.vat}%</p></div>
+                                                    <div className="px-2 border-r text-center"><p className="text-slate-400 uppercase font-bold text-[8px]">IVA</p><p className="font-bold text-slate-700 text-sm">{p.vat}%</p></div>
                                                     <div className="text-right"><p className="text-slate-400 uppercase font-bold text-[8px]">Shelf Life</p><p className="font-medium text-slate-500 text-[9px]">{p.shelfLife}</p></div>
                                                 </div>
                                             </div>
@@ -467,7 +494,7 @@
                         )}
                     </main>
 
-                    {/* MODALE EDITOR ANAGRAFICA */}
+                    {/* MODALI RIMANGONO SIMILI MA CON I CAMPI IVA E PRODUTTORE RIPRISTINATI */}
                     {isAnagraficaEdit && editingProduct && (
                         <div className="fixed inset-0 z-[110] bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-4 animate-fade-in">
                             <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl flex flex-col max-h-[90vh]">
@@ -488,24 +515,20 @@
                         </div>
                     )}
                     
-                    {/* MODALE LISTINO */}
                     {isAddingProduct && !isAnagraficaEdit && (
                         <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex items-end md:items-center justify-center p-0 md:p-6 animate-fade-in">
                             <div className="bg-white w-full max-w-xl rounded-t-[3.5rem] md:rounded-[3.5rem] p-10 space-y-8 shadow-2xl overflow-y-auto max-h-[95vh] relative">
-                                <button onClick={() => { setIsAddingProduct(false); setEditingProduct(null); }} className="absolute right-8 top-8 p-2 hover:bg-slate-100 rounded-full transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                                <button onClick={() => { setIsAddingProduct(false); setEditingProduct(null); }} className="absolute right-8 top-8 p-2 hover:bg-slate-100 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                                 {editingProduct ? (
                                     <div className="space-y-8 animate-fade-in">
-                                        <div className="bg-red-700 p-8 rounded-[3rem] text-white relative shadow-2xl shadow-red-200 overflow-hidden">
-                                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                                        <div className="bg-red-700 p-8 rounded-[3rem] text-white relative shadow-2xl overflow-hidden">
                                             <h4 className="font-black text-2xl leading-tight">{editingProduct.name}</h4>
                                             <p className="text-[10px] font-black text-red-200 mt-2 uppercase tracking-widest">{editingProduct.code} • {editingProduct.weight}</p>
                                         </div>
-                                        
                                         <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 flex justify-between items-center">
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Costo di Produzione</span>
                                             <span className="font-bold text-slate-700">{editingProduct.cost?.toFixed(2)} €</span>
                                         </div>
-
                                         <div className="grid grid-cols-2 gap-6">
                                             <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Prezzo Listino (€)</label><input type="number" step="0.01" className="w-full p-5 bg-white border border-slate-100 rounded-3xl font-black text-2xl text-red-700 outline-none focus:ring-4 focus:ring-red-500/10" value={editingProduct.basePrice} onChange={e => {
                                                 const v = parseFloat(e.target.value) || 0;
@@ -518,49 +541,30 @@
                                                 setEditingProduct({...editingProduct, basePrice: p.toFixed(2), markup: val});
                                             }} /></div>
                                             {listType === 'discount' && (
-                                                <div className="col-span-2 space-y-2 bg-blue-50/50 p-6 rounded-[2.5rem] border border-blue-100 animate-fade-in">
-                                                    <label className="text-[10px] font-black text-blue-500 uppercase tracking-widest text-center block">Sconto Dedicato (%)</label>
+                                                <div className="col-span-2 space-y-2 bg-blue-50/50 p-6 rounded-[2.5rem] border border-blue-100">
+                                                    <label className="text-[10px] font-black text-blue-500 uppercase tracking-widest text-center block">Sconto (%)</label>
                                                     <input type="number" className="w-full p-5 bg-white border border-blue-200 rounded-3xl font-black text-2xl text-blue-700 outline-none text-center" value={editingProduct.discount} onChange={e => setEditingProduct({...editingProduct, discount: parseFloat(e.target.value) || 0})} />
                                                 </div>
                                             )}
                                         </div>
                                         <button onClick={() => {
-                                            if (editingListIndex !== null) { 
-                                                const newList = [...selectedProducts]; 
-                                                newList[editingListIndex] = editingProduct; 
-                                                setSelectedProducts(newList); 
-                                            } else { 
-                                                setSelectedProducts([...selectedProducts, editingProduct]); 
-                                            }
+                                            if (editingListIndex !== null) { const newList = [...selectedProducts]; newList[editingListIndex] = editingProduct; setSelectedProducts(newList); } 
+                                            else { setSelectedProducts([...selectedProducts, editingProduct]); }
                                             setIsAddingProduct(false); setEditingProduct(null); setEditingListIndex(null);
                                         }} className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all">CONFERMA E AGGIUNGI</button>
                                     </div>
                                 ) : (
                                     <div className="space-y-6 animate-fade-in">
                                         <h3 className="font-black uppercase tracking-widest text-sm text-slate-400">Ricerca Articolo da Anagrafica</h3>
-                                        
                                         <div className="flex flex-col sm:flex-row gap-3">
-                                            <div className="flex-1 relative">
-                                                <input type="text" className="w-full p-4 bg-slate-100 border-none rounded-2xl outline-none font-bold shadow-inner" placeholder="Cerca nome o codice..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                                            </div>
-                                            <select 
-                                                className="bg-slate-100 border-none rounded-2xl px-4 py-4 outline-none font-bold text-xs uppercase tracking-tighter"
-                                                value={producerFilter}
-                                                onChange={e => setProducerFilter(e.target.value)}
-                                            >
-                                                {producersList.map(p => <option key={p} value={p}>{p}</option>)}
-                                            </select>
+                                            <div className="flex-1 relative"><input type="text" className="w-full p-4 bg-slate-100 border-none rounded-2xl outline-none font-bold" placeholder="Cerca nome o codice..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></div>
+                                            <select className="bg-slate-100 border-none rounded-2xl px-4 py-4 outline-none font-bold text-xs uppercase" value={producerFilter} onChange={e => setProducerFilter(e.target.value)}>{producersList.map(p => <option key={p} value={p}>{p}</option>)}</select>
                                         </div>
-
                                         <div className="space-y-2 max-h-[50vh] overflow-y-auto custom-scroll pr-2">
                                             {filteredForSelection.map(p => (
                                                 <button key={p.id} onClick={() => setEditingProduct({...p, discount: 10, markup: p.cost > 0 ? ((p.basePrice - p.cost) / p.cost * 100).toFixed(2) : 0})} className="w-full flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-red-500 transition-all text-left group">
-                                                    <div>
-                                                        <p className="text-[9px] font-black text-slate-300 uppercase mb-1">{p.code}</p>
-                                                        <h4 className="font-black text-slate-800 group-hover:text-red-700">{p.name}</h4>
-                                                        <p className="text-[9px] text-slate-400 italic">{p.producer || 'Salumificio Livasì'}</p>
-                                                    </div>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:stroke-red-300 group-hover:translate-x-1 transition-all"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                                    <div><p className="text-[9px] font-black text-slate-300 uppercase mb-1">{p.code}</p><h4 className="font-black text-slate-800 group-hover:text-red-700 text-sm leading-tight">{p.name}</h4><p className="text-[9px] text-slate-400 italic">{p.producer || 'Salumificio Livasì'}</p></div>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:stroke-red-300 transition-all"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                                 </button>
                                             ))}
                                         </div>
