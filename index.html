@@ -16,10 +16,11 @@
     
     <!-- Firebase Setup -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, collection, onSnapshot, deleteDoc, query } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
+        // Configurazione Utente per ambiente di produzione (Vercel)
         const realFirebaseConfig = {
             apiKey: "AIzaSyBFi7X_eZqtVHJSgVqHba2bOppHpBxXbRg",
             authDomain: "salumificio-livasi.firebaseapp.com",
@@ -30,16 +31,18 @@
             measurementId: "G-ZW785REKNE"
         };
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : realFirebaseConfig;
+        // Rilevamento automatico ambiente (Canvas vs Produzione)
+        const isCanvas = typeof __firebase_config !== 'undefined';
+        const firebaseConfig = isCanvas ? JSON.parse(__firebase_config) : realFirebaseConfig;
+        const appId = isCanvas && typeof __app_id !== 'undefined' ? __app_id : 'salumificio-livasi';
+
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'salumificio-livasi';
 
         window.fb = { 
             db, auth, doc, setDoc, collection, onSnapshot, deleteDoc, 
-            signInAnonymously, signInWithCustomToken, onAuthStateChanged, appId,
-            initialToken: typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null
+            signInAnonymously, signInWithCustomToken, onAuthStateChanged, appId 
         };
     </script>
 
@@ -48,7 +51,7 @@
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -97,6 +100,11 @@
             "Da concordare"
         ];
 
+        const CONDITIONS_IT = [{t:"Nel ringraziarVi dell’interesse verso i nostri prodotti, sottoponiamo alla Vostra cortese attenzione la nostra offerta.",b:false},{t:"1. IL NOSTRO SERVIZIO",b:true},{t:"Il salumificio Livasì si impegna a fornire i suoi prodotti nel rispetto nei tempi e nelle modalità indicate nel presente documento. Tutti i nostri salumi subiscono una fase di affumicatura con legno di ulivo e quercia. Per tutti i prodotti vengono rispettati i tempi di stagionatura stabiliti dal know-how aziendale.",b:false},{t:"2. Modalità di invio ordine",b:true},{t:"Gli ordini potranno pervenire via email ai seguenti indirizzi:\n- amministrazione@livasi.com\n- commerciale@livasi.com\no via whatsapp al numero:\n- +39 0963582222\nI nostri operatori risponderanno nel più breve tempo possibile.",b:false},{t:"3. Tempi di evasione ordine",b:true},{t:"In condizioni normali dalla ricezione dell’ordine questo viene preparato in 1/2gg lavorativi. Spedizioni dal lunedì al mercoledì con tempi di consegna standard di 2gg lavorativi nel territorio italiano.",b:false},{t:"4. Costi di spedizioni",b:true},{t:"Per gli ordini superiore ai 30kg di merce la spedizione è gratuita solo per consegna in Italia. Per carichi inferiori o estero, il costo è calcolato in fattura.",b:false},{t:"5. Modalità di pagamento",b:true},{t:"- Bonifico anticipato (la merce verrà spedita solo dopo la verifica di incasso pagamento)",b:false},{t:"6. Obblighi alla ricezione della merce",b:true},{t:"Accettare con riserva di controllo. Segnalare eventuali danni immediatamente sul documento del corriere e scattare foto. Non si accettano reclami senza riserva firmata.",b:false}];
+        const CONDITIONS_EN = [{t:"Thank you for your interest in our products, we submit our offer for your kind attention.",b:false},{t:"1. OUR SERVICE",b:true},{t:"Salumificio Livasì is committed to providing its products according to the times and methods indicated in this document. All our cured meats undergo a smoking phase with olive and oak wood. For all products, seasoning times established by company know-how are respected.",b:false},{t:"2. Order Submission",b:true},{t:"Orders can be sent via email to:\n- amministrazione@livasi.com\n- commerciale@livasi.com\nor via WhatsApp at:\n- +39 0963582222\nOur operators will respond as soon as possible.",b:false},{t:"3. Lead Times",b:true},{t:"Under normal conditions, orders are prepared in 1/2 working days. Shipments from Monday to Wednesday with standard delivery times of 2 working days in Italy.",b:false},{t:"4. Shipping Costs",b:true},{t:"For orders over 30kg, shipping is free only for delivery in Italy. For smaller loads or international shipping, costs are calculated in the invoice.",b:false},{t:"5. Payment Terms",b:true},{t:"- Advance Bank Transfer (goods will be shipped only after verification of payment receipt)",b:false},{t:"6. Receipt of Goods",b:true},{t:"Accept with 'subject to control'. Report any damage immediately on the courier's document and take photos. Claims without a signed reserve will not be accepted.",b:false}];
+        const DISC_IT = "Il prezzo è da considerarsi escluso IVA. l’IVA indicata è valida per la fatturazione in Italia. Per la fatturazione estera verrà utilizzato il codice IVA relativa alla normativa di riferimento.";
+        const DISC_EN = "Prices are to be considered VAT excluded. The indicated VAT is valid for invoicing in Italy. For international invoicing, specific VAT regulations will apply.";
+
         function App() {
             const [user, setUser] = useState(null);
             const [activeTab, setActiveTab] = useState('listino');
@@ -112,70 +120,79 @@
             const [searchQuery, setSearchQuery] = useState('');
             const [producerFilter, setProducerFilter] = useState('Tutti');
             const [editingProduct, setEditingProduct] = useState(null);
-            const [editingListIndex, setEditingListIndex] = useState(null);
             const [isAnagraficaEdit, setIsAnagraficaEdit] = useState(false);
             const [globalDiscount, setGlobalDiscount] = useState(10);
             
             const initializedRef = useRef(false);
 
+            // Inizializzazione Autenticazione (Regola 3)
             useEffect(() => {
-                const timer = setInterval(() => {
+                const initAuth = async () => {
                     if (window.fb) {
-                        clearInterval(timer);
-                        const { auth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, collection, db, onSnapshot, setDoc, doc, appId, initialToken } = window.fb;
-                        
-                        const initAuth = async () => {
-                            if (initialToken) await signInWithCustomToken(auth, initialToken);
-                            else await signInAnonymously(auth);
-                        };
-                        initAuth().catch(err => console.error("Auth error:", err));
-
-                        onAuthStateChanged(auth, (u) => {
-                            if (u) {
-                                setUser(u);
-                                const assetsCol = collection(db, "artifacts", appId, "public", "data", "assets");
-                                const productsCol = collection(db, "artifacts", appId, "public", "data", "products");
-
-                                onSnapshot(assetsCol, (snap) => {
-                                    const a = {}; snap.forEach(d => a[d.id] = d.data().base64);
-                                    setAssets(a);
-                                });
-
-                                onSnapshot(productsCol, (snap) => {
-                                    const p = []; snap.forEach(d => p.push({id: d.id, ...d.data()}));
-                                    
-                                    const currentIds = p.map(x => x.id);
-                                    const missing = DEFAULT_PRODUCTS.filter(d => !currentIds.includes(d.id));
-                                    
-                                    if (missing.length > 0) {
-                                        missing.forEach(item => setDoc(doc(productsCol, item.id), item));
-                                    } else {
-                                        setProducts(p);
-                                        if (!initializedRef.current && p.length >= 17) {
-                                            const stdIds = DEFAULT_PRODUCTS.map(i => i.id);
-                                            const found = p.filter(i => stdIds.includes(i.id))
-                                                           .sort((a, b) => stdIds.indexOf(a.id) - stdIds.indexOf(b.id));
-                                            
-                                            const mapped = found.map(i => ({
-                                                ...i, 
-                                                discount: 10,
-                                                markup: i.cost > 0 ? ((i.basePrice - i.cost) / i.cost * 100).toFixed(2) : 0
-                                            }));
-                                            setSelectedProducts(mapped);
-                                            initializedRef.current = true;
-                                        }
-                                    }
-                                });
+                        const { auth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } = window.fb;
+                        try {
+                            // Se siamo nel Canvas, usiamo il token dedicato, altrimenti anonimo
+                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } else {
+                                await signInAnonymously(auth);
                             }
+                        } catch (err) {
+                            console.error("Errore Autenticazione:", err);
+                        }
+                        const unsubscribe = onAuthStateChanged(auth, (u) => {
+                            if (u) setUser(u);
                         });
+                        return () => unsubscribe();
                     }
-                }, 100);
-                return () => clearInterval(timer);
+                };
+                initAuth();
             }, []);
 
-            const handleFileUpload = (e, key) => {
+            // Recupero Dati (solo se autenticato - Regola 2)
+            useEffect(() => {
+                if (!user || !window.fb) return;
+                
+                const { db, collection, onSnapshot, setDoc, doc, appId } = window.fb;
+                
+                // Percorsi protetti (Regola 1)
+                const assetsCol = collection(db, "artifacts", appId, "public", "data", "assets");
+                const productsCol = collection(db, "artifacts", appId, "public", "data", "products");
+
+                const unsubAssets = onSnapshot(assetsCol, (snap) => {
+                    const a = {}; snap.forEach(d => a[d.id] = d.data().base64);
+                    setAssets(a);
+                }, (err) => console.error("Errore Assets:", err));
+
+                const unsubProducts = onSnapshot(productsCol, (snap) => {
+                    const p = []; snap.forEach(d => p.push({id: d.id, ...d.data()}));
+                    
+                    const currentIds = p.map(x => x.id);
+                    const missing = DEFAULT_PRODUCTS.filter(d => !currentIds.includes(d.id));
+                    
+                    if (missing.length > 0) {
+                        missing.forEach(async (item) => {
+                            try {
+                                await setDoc(doc(productsCol, item.id), item);
+                            } catch(e) { console.error("Errore caricamento prodotti:", e); }
+                        });
+                    } else {
+                        setProducts(p);
+                        if (!initializedRef.current && p.length >= 17) {
+                            const stdIds = DEFAULT_PRODUCTS.map(i => i.id);
+                            const sorted = p.filter(i => stdIds.includes(i.id)).sort((a,b) => stdIds.indexOf(a.id) - stdIds.indexOf(b.id));
+                            setSelectedProducts(sorted.map(i => ({...i, discount: 10})));
+                            initializedRef.current = true;
+                        }
+                    }
+                }, (err) => console.error("Errore Prodotti:", err));
+
+                return () => { unsubAssets(); unsubProducts(); };
+            }, [user]);
+
+            const handleFileUpload = async (e, key) => {
                 const file = e.target.files[0];
-                if (!file || !user) return;
+                if (!file || !user || !window.fb) return;
                 setIsUploading(key);
                 const reader = new FileReader();
                 reader.onload = (event) => {
@@ -192,7 +209,9 @@
                         ctx.drawImage(img, 0, 0, w, h);
                         const b64 = canvas.toDataURL('image/jpeg', 0.8);
                         const { db, setDoc, doc, appId } = window.fb;
-                        await setDoc(doc(db, "artifacts", appId, "public", "data", "assets", key), { base64: b64 });
+                        try {
+                            await setDoc(doc(db, "artifacts", appId, "public", "data", "assets", key), { base64: b64 });
+                        } catch(e) { console.error("Upload fallito:", e); }
                         setIsUploading(null);
                     };
                     img.src = event.target.result;
@@ -200,7 +219,6 @@
                 reader.readAsDataURL(file);
             };
 
-            // Helper per ottenere le dimensioni dell'immagine base64 asincronamente
             const getImageDimensions = (base64) => {
                 return new Promise((resolve) => {
                     const img = new Image();
@@ -214,11 +232,11 @@
                 if (!window.jspdf) return;
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-                const dateStr = new Date().toLocaleDateString('it-IT').replace(/\//g, '-');
                 const isEn = pdfLanguage === 'en';
+                const dateStr = new Date().toLocaleDateString('it-IT').replace(/\//g, '-');
 
                 const renderHeader = (d) => {
-                    if (assets.logoAziendale) { try { d.addImage(assets.logoAziendale, 'JPEG', 20, 10, 35, 15); } catch(e){} }
+                    if (assets.logoAziendale) d.addImage(assets.logoAziendale, 'JPEG', 20, 10, 35, 15);
                     d.setFontSize(10); d.setTextColor(180, 0, 0); d.setFont(undefined, 'bold');
                     d.text("Salumificio Livasì", 115, 17, { align: 'center' });
                     d.setFontSize(8); d.setTextColor(100, 100, 100); d.setFont(undefined, 'normal');
@@ -229,17 +247,15 @@
                 const renderFooter = (d) => {
                     const ph = d.internal.pageSize.height;
                     d.setDrawColor(220); d.line(20, ph - 35, 190, ph - 35);
-                    let currentX = 35;
+                    let x = 35;
                     for (let i = 1; i <= 5; i++) {
-                        const l = assets[`cert${i}`];
-                        if (l) { try { d.addImage(l, 'JPEG', currentX, ph - 30, 25, 15); } catch(e){} }
-                        currentX += 30;
+                        if (assets[`cert${i}`]) d.addImage(assets[`cert${i}`], 'JPEG', x, ph - 30, 25, 15);
+                        x += 30;
                     }
                 };
 
-                // P1: FRONTESPIZIO CON PROPORZIONI CORRETTE
+                // P1: Cover
                 doc.setFillColor(15, 15, 15); doc.rect(0, 0, 210, 297, 'F');
-                
                 if (assets.frontespizio) {
                     const dims = await getImageDimensions(assets.frontespizio);
                     if (dims.w > 0) {
@@ -250,195 +266,119 @@
                         try { doc.addImage(assets.frontespizio, 'JPEG', 0, yPos, drawWidth, drawHeight, undefined, 'FAST'); } catch (e) {}
                     }
                 }
-                
                 doc.setFillColor(0); doc.setGState(new doc.GState({opacity: 0.65}));
                 doc.rect(0, 75, 210, 50, 'F'); doc.setGState(new doc.GState({opacity: 1}));
-                doc.setTextColor(255); doc.setFontSize(34); doc.setFont(undefined, 'bold');
-                doc.text("Salumificio Livasì", 105, 95, {align:'center'});
-                doc.setFontSize(22); doc.setFont(undefined, 'normal');
-                doc.text(isEn ? "PRICE LIST" : "LISTINO PREZZI", 105, 112, {align:'center'});
+                doc.setTextColor(255); doc.setFontSize(32); doc.text("Salumificio Livasì", 105, 100, {align:'center'});
+                doc.setFontSize(22); doc.text(isEn ? "PRICE LIST" : "LISTINO PREZZI", 105, 115, {align:'center'});
                 if (clientName) {
                     doc.setGState(new doc.GState({opacity: 0.75})); doc.rect(0, 235, 210, 32, 'F'); doc.setGState(new doc.GState({opacity: 1}));
                     doc.setFontSize(14); doc.text(`${isEn ? 'Reserved for' : 'Riservato a'}: ${clientName}`, 105, 250, {align:'center'});
-                    doc.setFontSize(10); doc.text(`${isEn ? 'Emission Date' : 'Data Emissione'}: ${dateStr}`, 105, 258, {align:'center'});
+                    doc.setFontSize(10); doc.text(`${isEn ? 'Date' : 'Data'}: ${dateStr}`, 105, 258, {align:'center'});
                 }
 
-                // P2: CONDIZIONI INTEGRALI
+                // P2: Conditions
                 doc.addPage(); renderHeader(doc);
                 doc.setFillColor(255); doc.setGState(new doc.GState({opacity: 0.85})); doc.rect(15, 40, 180, 220, 'F'); doc.setGState(new doc.GState({opacity: 1}));
-                doc.setTextColor(40); doc.setFontSize(8); let y = 48;
-                const conditions = isEn ? [
-                    { t: "We thank you for your interest in our products and submit our offer for your kind attention.", b: false },
-                    { t: "1. OUR SERVICE", b: true },
-                    { t: "Salumificio Livasì is committed to providing its products within the times and methods indicated in this document. All our cured meats undergo a smoking phase with olive and oak wood. For all products, seasoning times established by the company's know-how are respected.", b: false },
-                    { t: "2. Order submission methods", b: true },
-                    { t: "Orders can be sent via email to the following addresses:\n- amministrazione@livasi.com\n- commerciale@livasi.com\nor via WhatsApp at number:\n- +39 0963582222\nOur operators will respond as soon as possible.", b: false },
-                    { t: "3. Order fulfillment times", b: true },
-                    { t: "Order fulfillment times may vary based on the following factors:\n- Availability of the product\n- Period of order receipt (summer/Christmas period)\nUnder normal conditions, from the receipt of the order, it is prepared in 1/2 working days. Shipments from Monday to Wednesday with standard delivery times of 2 working days in Italy.", b: false },
-                    { t: "4. Shipping costs", b: true },
-                    { t: "For orders over 30kg, shipping is free only for delivery in Italy. For smaller loads or abroad, the cost is calculated in the invoice based on the weight and number of packages sent.\nFor shipments outside Italy, shipping costs are charged to the recipient for any order.", b: false },
-                    { t: "5. Payment methods", b: true },
-                    { t: `- ${paymentMethod === PAYMENT_METHODS[0] ? 'Advance Bank Transfer (goods will be shipped only after verification of payment receipt)' : paymentMethod}`, b: false },
-                    { t: "6. Obligations upon receipt of goods", b: true },
-                    { t: "Accept with reserve of control. Report any damage immediately on the courier's document and take photos. If the courier refuses to let you sign with reserve, contact us at 0963582222 or refuse the goods. Claims without a signed reserve will not be accepted.", b: false }
-                ] : [
-                    { t: "Nel ringraziarVi dell’interesse verso i nostri prodotti, sottoponiamo alla Vostra cortese attenzione la nostra offerta.", b: false },
-                    { t: "1. IL NOSTRO SERVIZIO", b: true },
-                    { t: "Il salumificio Livasì si impegna a fornire i suoi prodotti nel rispetto nei tempi e nelle modalità indicate nel presente documento. Tutti i nostri salumi subiscono una fase di affumicatura con legno di ulivo e quercia. Per tutti i prodotti vengono rispettati i tempi di stagionatura stabiliti dal know-how aziendale.", b: false },
-                    { t: "2. Modalità di invio ordine", b: true },
-                    { t: "Gli ordini potranno pervenire via email ai seguenti indirizzi:\n- amministrazione@livasi.com\n- commerciale@livasi.com\no via whatsapp al numero:\n- +39 0963582222\nI nostri operatori risponderanno nel più breve tempo possibile.", b: false },
-                    { t: "3. Tempi di evasione ordine", b: true },
-                    { t: "I tempi di evasione dell’ordine possono variare in base ai seguenti fattori:\n- Disponibilità del prodotto\n- Periodo di ricezione dell’ordine (periodo estivo/natalizio)\nIn condizioni normali dalla ricezione dell’ordine questo viene preparato in 1/2gg lavorativi. Spedizioni dal lunedì al mercoledì con tempi di consegna standard di 2gg lavorativi nel territorio italiano.", b: false },
-                    { t: "4. Costi di spedizioni", b: true },
-                    { t: "Per gli ordini superiore ai 30kg di merce la spedizione è gratuita solo per consegna in Italia. Per gli ordini inferiori ai 30 kg il costo di spedizione viene inserito in fattura e calcolato di volta in volta in base al peso e numero di colli inviati.\nPer le spedizioni fuori Italia il costo di spedizione è a carico del destinatario per qualsiasi ordine", b: false },
-                    { t: "5. Modalità di pagamento", b: true },
-                    { t: `- ${paymentMethod}`, b: false },
-                    { t: "6. Obblighi alla ricezione della merce", b: true },
-                    { t: "Al momento della ricezione della merce è necessario accettare la consegna con riserva di controllo. Dovrai spuntare la casella apposita su un foglio che terrà il corriere stesso. Se non è presente nessuna casella per la riserva, basterà scrivere \"Si accetta consegna con riserva di controllo\" ed apporre una firma. Se vedi danni al pacco, descrivi il danno sempre sul foglio che terrà il corriere, ad es.: \"si segnala un foro sul lato superiore del pacco\", e scatta subito una foto. Se il corriere si rifiuta di farvi firmare con riserva, può contattarci al numero 0963582222 o rifiutare la merce. Non si accetteranno reclami per merce mancante o danneggiata se non si esegue questa procedura", b: false }
-                ];
-                conditions.forEach(s => {
-                    doc.setFont(undefined, s.b ? 'bold' : 'normal');
-                    const lines = doc.splitTextToSize(s.t, 170);
-                    doc.text(lines, 20, y); y += (lines.length * 4.2) + 2;
-                });
+                const cond = isEn ? CONDITIONS_EN : CONDITIONS_IT;
+                let y = 50; doc.setTextColor(40); doc.setFontSize(8);
+                cond.forEach(s => { doc.setFont(undefined, s.b?'bold':'normal'); const lines = doc.splitTextToSize(s.t, 170); doc.text(lines, 20, y); y += (lines.length * 4.5) + 2; });
                 renderFooter(doc);
 
-                // P3: LISTINO
+                // P3: Table
                 doc.addPage(); renderHeader(doc);
                 doc.setFillColor(255); doc.setGState(new doc.GState({opacity: 0.85})); doc.rect(15, 38, 180, 222, 'F'); doc.setGState(new doc.GState({opacity: 1}));
-                doc.setFontSize(14); doc.setFont(undefined, 'bold'); doc.text("LISTINO PREZZI DETTAGLIATO", 105, 45, {align:'center'});
+                doc.setFontSize(14); doc.setFont(undefined, 'bold'); doc.text(isEn ? "DETAILED PRICE LIST" : "LISTINO PREZZI DETTAGLIATO", 105, 45, {align:'center'});
                 const tableData = selectedProducts.map(p => {
-                    const discountedPrice = parseFloat((p.basePrice * (1 - (p.discount || 0) / 100)).toFixed(2));
-                    return listType === 'standard' 
-                        ? [p.code, p.name, p.weight, p.shelfLife, p.unit, p.vat+"%", p.basePrice.toFixed(2)+"€"] 
-                        : [p.code, p.name, p.weight, p.shelfLife, p.unit, p.vat+"%", p.basePrice.toFixed(2)+"€", (p.discount || 0)+"%", discountedPrice.toFixed(2)+"€"];
+                    const discounted = (p.basePrice * (1 - (p.discount || 0) / 100)).toFixed(2);
+                    return listType === 'standard' ? [p.code, p.name, p.weight, p.shelfLife, p.unit, p.vat+"%", p.basePrice.toFixed(2)+"€"] : [p.code, p.name, p.weight, p.shelfLife, p.unit, p.vat+"%", p.basePrice.toFixed(2)+"€", (p.discount||0)+"%", discounted+"€"];
                 });
-                const itHeads = listType === 'standard' ? ["Codice", "Prodotto", "Peso", "Shelf Life", "U.M.", "IVA", "Prezzo"] : ["Codice", "Prodotto", "Peso", "Shelf Life", "U.M.", "IVA", "Listino", "Sconto", "Finale"];
-                const enHeads = listType === 'standard' ? ["Code", "Product", "Weight", "Shelf Life", "U.M.", "VAT", "Price"] : ["Code", "Product", "Weight", "Shelf Life", "U.M.", "VAT", "List Price", "Discount", "Final Price"];
-                doc.autoTable({
-                    startY: 55, head: [isEn ? enHeads : itHeads], body: tableData, theme: 'striped',
-                    headStyles: { fillColor: [180, 0, 0], textColor: [255, 255, 255] },
-                    alternateRowStyles: { fillColor: [248, 248, 248] },
-                    styles: { fontSize: 7, cellPadding: 2.5 },
-                    margin: { left: 20, right: 20 },
-                    didDrawPage: (d) => {
-                        doc.setFontSize(7.5); doc.setTextColor(100); doc.setFont(undefined, 'italic');
-                        const itDisc = "Il prezzo è da considerarsi escluso IVA. l’IVA indicata è valida per la fatturazione in Italia. Per la fatturazione estera verrà utilizzato il codice IVA relativa alla normativa di riferimento.";
-                        const enDisc = "Price is to be considered VAT excluded. The indicated VAT is valid for invoicing in Italy. For foreign invoicing, the VAT code relating to the reference regulations will be used.";
-                        doc.text(doc.splitTextToSize(isEn ? enDisc : itDisc, 160), 25, d.cursor.y + 10);
-                    }
-                });
-                renderFooter(doc);
-                doc.save(`Listino_${clientName || 'Cliente'}_${dateStr}.pdf`);
+                const head = isEn ? (listType==='standard'?["Code","Product","Weight","Shelf Life","U.M.","VAT","Price"]:["Code","Product","Weight","Shelf Life","U.M.","VAT","List","Disc.","Final"]) : (listType==='standard'?["Codice","Prodotto","Peso","Shelf Life","U.M.","IVA","Prezzo"]:["Codice","Prodotto","Peso","Shelf Life","U.M.","IVA","Listino","Sconto","Finale"]);
+                doc.autoTable({ startY: 55, head: [head], body: tableData, theme: 'striped', headStyles: { fillColor: [180, 0, 0] }, styles: { fontSize: 7 } });
+                doc.setFontSize(7.5); doc.setTextColor(100);
+                const disc = isEn ? DISC_EN : DISC_IT;
+                doc.text(doc.splitTextToSize(disc, 160), 25, doc.lastAutoTable.finalY + 10);
+                renderFooter(doc); doc.save(`Listino_${clientName || 'Livasi'}.pdf`);
             };
 
-            const saveProduct = async (p) => {
-                const { db, setDoc, doc, appId } = window.fb;
-                const pId = p.id || crypto.randomUUID();
-                await setDoc(doc(db, "artifacts", appId, "public", "data", "products", pId), { ...p, id: pId });
-                setIsAnagraficaEdit(false); setEditingProduct(null);
-            };
+            const producers = useMemo(() => ['Tutti', ...new Set(products.map(p => p.producer || 'Salumificio Livasì'))], [products]);
+            const filtered = useMemo(() => products.filter(p => (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase())) && (producerFilter === 'Tutti' || (p.producer || 'Salumificio Livasì') === producerFilter)), [products, searchQuery, producerFilter]);
 
-            const producersList = useMemo(() => ['Tutti', ...new Set(products.map(p => p.producer || 'Salumificio Livasì'))], [products]);
-            const filteredAnagrafica = useMemo(() => products.filter(p => (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase()))), [products, searchQuery]);
-            const filteredForSelection = useMemo(() => products.filter(p => {
-                const matchText = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase());
-                const matchProducer = producerFilter === 'Tutti' || (p.producer || 'Salumificio Livasì') === producerFilter;
-                return matchText && matchProducer;
-            }), [products, searchQuery, producerFilter]);
-
-            const applyGlobalDiscount = (val) => {
-                const disc = parseFloat(val) || 0;
-                setGlobalDiscount(disc);
-                setSelectedProducts(selectedProducts.map(p => ({ ...p, discount: disc })));
-            };
-
-            const handleInlineDiscountChange = (index, val) => {
-                const disc = parseFloat(val) || 0;
-                const newList = [...selectedProducts];
-                newList[index] = { ...newList[index], discount: disc };
-                setSelectedProducts(newList);
-            };
+            if (!user) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin h-8 w-8 border-4 border-red-700 border-t-transparent rounded-full"></div></div>;
 
             return (
-                <div className="min-h-screen pb-24 selection:bg-red-100 font-sans">
+                <div className="min-h-screen pb-24 font-sans bg-slate-50 text-slate-800">
                     <header className="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-                        <div className="flex items-center gap-2">
-                            <div className="w-10 h-10 bg-red-700 rounded-xl flex items-center justify-center text-white font-black shadow-lg text-lg text-white">L</div>
-                            <h1 className="font-black text-slate-800 tracking-tighter text-lg leading-none uppercase">Livasì Manager</h1>
-                        </div>
+                        <div className="flex items-center gap-2"><div className="w-10 h-10 bg-red-700 rounded-xl flex items-center justify-center text-white font-black shadow-lg">L</div><h1 className="font-black uppercase tracking-tighter text-lg">Livasì Manager</h1></div>
                         <div className="flex gap-2">
-                            <button onClick={() => setActiveTab('listino')} className={`p-3 rounded-xl transition-all ${activeTab === 'listino' ? 'bg-red-50 text-red-700 shadow-inner' : 'text-slate-400'}`}><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg></button>
-                            <button onClick={() => setActiveTab('anagrafica')} className={`p-3 rounded-xl transition-all ${activeTab === 'anagrafica' ? 'bg-red-50 text-red-700 shadow-inner' : 'text-slate-400'}`}><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+                            <button onClick={() => setActiveTab('listino')} className={`p-3 rounded-xl transition-all ${activeTab==='listino'?'bg-red-50 text-red-700 shadow-inner':'text-slate-400'}`}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg></button>
+                            <button onClick={() => setActiveTab('anagrafica')} className={`p-3 rounded-xl transition-all ${activeTab==='anagrafica'?'bg-red-50 text-red-700 shadow-inner':'text-slate-400'}`}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
                         </div>
                     </header>
 
                     <main className="p-4 max-w-2xl mx-auto space-y-6">
                         {activeTab === 'listino' ? (
                             <div className="space-y-6 animate-fade-in">
-                                <section className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-5">
-                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cliente</label><input type="text" className="w-full p-2 border-b font-bold text-lg outline-none focus:border-red-500 bg-transparent transition-all" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Salumeria Rossi..." /></div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Modello</label><div className="flex bg-slate-100 p-1 rounded-2xl"><button onClick={() => setListType('standard')} className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${listType === 'standard' ? 'bg-white shadow-sm text-red-700' : 'text-slate-400'}`}>STANDARD</button><button onClick={() => setListType('discount')} className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${listType === 'discount' ? 'bg-white shadow-sm text-red-700' : 'text-slate-400'}`}>SCONTO</button></div></div>
-                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Lingua PDF</label><div className="flex bg-slate-100 p-1 rounded-2xl"><button onClick={() => setPdfLanguage('it')} className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${pdfLanguage === 'it' ? 'bg-white shadow-sm text-red-700' : 'text-slate-400'}`}>ITALIANO</button><button onClick={() => setPdfLanguage('en')} className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${pdfLanguage === 'en' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-400'}`}>ENGLISH</button></div></div>
+                                <section className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                                    <input type="text" className="w-full p-2 border-b font-bold text-lg outline-none focus:border-red-500 bg-transparent" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Cliente..." />
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="flex bg-slate-100 p-1 rounded-xl"><button onClick={()=>setListType('standard')} className={`flex-1 py-1.5 text-[10px] font-black rounded-lg ${listType==='standard'?'bg-white text-red-700 shadow-sm':'text-slate-400'}`}>STANDARD</button><button onClick={()=>setListType('discount')} className={`flex-1 py-1.5 text-[10px] font-black rounded-lg ${listType==='discount'?'bg-white text-red-700 shadow-sm':'text-slate-400'}`}>SCONTO</button></div>
+                                        <div className="flex bg-slate-100 p-1 rounded-xl"><button onClick={()=>setPdfLanguage('it')} className={`flex-1 py-1.5 text-[10px] font-black rounded-lg ${pdfLanguage==='it'?'bg-white text-red-700 shadow-sm':'text-slate-400'}`}>ITALIANO</button><button onClick={()=>setPdfLanguage('en')} className={`flex-1 py-1.5 text-[10px] font-black rounded-lg ${pdfLanguage==='en'?'bg-white text-blue-700 shadow-sm':'text-slate-400'}`}>ENGLISH</button></div>
                                     </div>
                                     {listType === 'discount' && (
-                                        <div className="p-4 bg-red-50 rounded-2xl border border-red-100 animate-fade-in flex items-center justify-between">
-                                            <div className="space-y-0.5"><p className="text-[10px] font-black text-red-700 uppercase">Applica Sconto a Tutti</p></div>
-                                            <div className="flex items-center gap-2"><input type="number" value={globalDiscount} onChange={e => applyGlobalDiscount(e.target.value)} className="w-16 p-2 bg-white border border-red-200 rounded-lg text-center font-bold text-red-700 outline-none" /><span className="font-bold text-red-700">%</span></div>
-                                        </div>
+                                        <div className="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-100 animate-fade-in"><span className="text-[10px] font-black text-red-700 uppercase">Sconto Globale</span><div className="flex items-center gap-1"><input type="number" value={globalDiscount} onChange={e => { const v=parseFloat(e.target.value)||0; setGlobalDiscount(v); setSelectedProducts(selectedProducts.map(p=>({...p, discount:v}))); }} className="w-12 p-1 bg-white border rounded text-center font-bold" />%</div></div>
                                     )}
-                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Metodo Pagamento</label><select className="w-full p-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
                                 </section>
+
                                 <div className="space-y-3">
-                                    <div className="flex justify-between items-center px-2"><h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Articoli Listino ({selectedProducts.length})</h2><button onClick={() => { setIsAnagraficaEdit(false); setIsAddingProduct(true); }} className="p-2 bg-slate-900 text-white rounded-xl shadow-lg active:scale-95"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div>
+                                    <div className="flex justify-between items-center px-2"><h2 className="text-xs font-black uppercase text-slate-400">Prodotti Selezionati ({selectedProducts.length})</h2><button onClick={()=>setIsAddingProduct(true)} className="p-2 bg-slate-900 text-white rounded-lg active:scale-95 shadow-lg"><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div>
                                     {selectedProducts.map((p, i) => {
                                         const displayPrice = listType === 'standard' ? p.basePrice : (p.basePrice * (1 - (p.discount || 0) / 100));
                                         return (
-                                            <div key={i} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center animate-fade-in group">
+                                            <div key={i} className="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-1"><span className="text-[10px] font-bold text-red-600 uppercase tracking-tighter bg-red-50 px-1.5 rounded">{p.code}</span><h3 className="font-bold truncate text-sm text-slate-800">{p.name}</h3></div>
-                                                    <div className="flex items-center gap-2"><p className="text-[11px] text-slate-400 italic">{p.weight} • <span className="font-bold text-slate-900">{displayPrice.toFixed(2)}€</span></p>{listType === 'discount' && <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 ml-1"><span className="text-[8px] font-black text-blue-400">SCONTO:</span><input type="number" value={p.discount} onChange={e => handleInlineDiscountChange(i, e.target.value)} className="w-8 bg-transparent text-[10px] font-bold text-blue-600 text-center outline-none" /><span className="text-[9px] font-bold text-blue-600">%</span></div>}</div>
+                                                    <div className="flex items-center gap-2 mb-1"><span className="text-[10px] font-bold text-red-600 uppercase bg-red-50 px-1.5 rounded">{p.code}</span><h3 className="font-bold truncate text-sm">{p.name}</h3></div>
+                                                    <div className="flex items-center gap-3"><p className="text-[11px] text-slate-400 italic leading-none">{p.weight} • <span className="font-bold text-slate-900 not-italic">{displayPrice.toFixed(2)}€</span></p>
+                                                    {listType === 'discount' && <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 ml-1"><input type="number" value={p.discount} onChange={e => { const nl=[...selectedProducts]; nl[i].discount=parseFloat(e.target.value)||0; setSelectedProducts(nl); }} className="w-8 bg-transparent text-[10px] font-bold text-blue-600 text-center outline-none" />%</div>}</div>
                                                 </div>
-                                                <div className="flex gap-1 ml-4"><button onClick={() => { setEditingProduct({...p}); setEditingListIndex(i); setIsAddingProduct(true); setIsAnagraficaEdit(false); }} className="p-2 text-slate-300 hover:text-blue-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button onClick={() => setSelectedProducts(selectedProducts.filter((_, idx) => idx !== i))} className="p-2 text-slate-300 hover:text-red-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div>
+                                                <button onClick={() => setSelectedProducts(selectedProducts.filter((_, idx) => idx !== i))} className="p-2 text-slate-300 hover:text-red-600 transition-colors"><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                                             </div>
                                         );
                                     })}
                                 </div>
-                                <button onClick={generatePDF} className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-10 py-5 rounded-3xl font-black shadow-2xl active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center gap-3 z-50"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> GENERA PDF</button>
+                                <button onClick={generatePDF} className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-10 py-4 rounded-full font-black shadow-2xl active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center gap-3 z-50">GENERA PDF</button>
                             </div>
                         ) : (
-                            <div className="space-y-8 animate-fade-in pb-20">
+                            <div className="space-y-8 animate-fade-in pb-24">
                                 <section className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                                    <h2 className="font-black text-xs uppercase tracking-widest mb-6 flex items-center gap-2 text-slate-400 tracking-widest uppercase text-slate-400">Asset Grafici</h2>
+                                    <h2 className="font-black text-xs uppercase tracking-widest mb-6 text-slate-400 uppercase tracking-widest">Asset Grafici</h2>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {LOGO_KEYS.map(({ key, label }) => (
                                             <div key={key} className="p-4 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col gap-3">
-                                                <div className="flex justify-between items-center"><span className="text-[10px] font-bold text-slate-400 uppercase">{label}</span>{isUploading === key ? <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-700"></div> : assets[key] ? <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> : null}</div>
-                                                <label className="cursor-pointer bg-white border border-slate-200 text-center py-2 rounded-xl text-[10px] font-black hover:bg-slate-100 uppercase transition-all">{assets[key] ? 'Sostituisci' : 'Carica'}<input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, key)} /></label>
+                                                <div className="flex justify-between items-center"><span className="text-[10px] font-bold text-slate-400 uppercase">{label}</span>{isUploading === key ? <div className="animate-spin h-3 w-3 border-2 border-red-700 border-t-transparent rounded-full"></div> : assets[key] ? <span className="text-green-600 text-xs font-bold">✓ Caricato</span> : null}</div>
+                                                <label className="cursor-pointer bg-white border border-slate-200 text-center py-2 rounded-xl text-[10px] font-black uppercase hover:bg-slate-100 transition-all tracking-widest">{assets[key] ? 'Sostituisci' : 'Carica'}<input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, key)} /></label>
                                             </div>
                                         ))}
                                     </div>
                                 </section>
                                 <section className="space-y-4">
-                                    <div className="flex justify-between items-center px-2"><h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Anagrafica Prodotti</h2><button onClick={() => { setEditingProduct({code:'', name:'', cost:0, vat:10, producer:'Salumificio Livasì', unit:'Kg', weight:'', shelfLife:'180 gg', basePrice:0}); setIsAnagraficaEdit(true); }} className="p-2 bg-slate-900 text-white rounded-xl shadow-lg active:scale-95"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div>
+                                    <div className="flex justify-between items-center px-2"><h2 className="text-xs font-black uppercase text-slate-400 uppercase tracking-widest">Anagrafica Prodotti</h2><button onClick={() => { setEditingProduct({code:'', name:'', cost:0, vat:10, producer:'Salumificio Livasì', unit:'Kg', weight:'', shelfLife:'180 gg', basePrice:0}); setIsAnagraficaEdit(true); }} className="p-2 bg-slate-900 text-white rounded-lg shadow-lg active:scale-95"><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div>
                                     <div className="grid grid-cols-1 gap-3">
-                                        {products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase())).map(p => (
+                                        {products.map(p => (
                                             <div key={p.id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-3 group animate-fade-in hover:border-red-200 transition-all">
                                                 <div className="flex justify-between items-start">
                                                     <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-3 py-1 rounded-full uppercase tracking-widest">{p.code}</span>
                                                     <div className="flex gap-2">
-                                                        <button onClick={() => { setEditingProduct({...p}); setIsAnagraficaEdit(true); }} className="text-blue-600 p-1 hover:bg-blue-50 rounded-lg transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                                                        <button onClick={async () => { if(confirm('Eliminare articolo?')) { const {db, deleteDoc, doc, appId} = window.fb; await deleteDoc(doc(db, "artifacts", appId, "public", "data", "products", p.id)); } }} className="text-red-600 p-1 hover:bg-red-50 rounded-lg transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                                                        <button onClick={() => { setEditingProduct({...p}); setIsAnagraficaEdit(true); }} className="text-blue-600 p-1 hover:bg-blue-50 rounded-lg transition-all"><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                                                        <button onClick={async () => { if(confirm('Eliminare articolo?')) { const {db, deleteDoc, doc, appId} = window.fb; await deleteDoc(doc(db, "artifacts", appId, "public", "data", "products", p.id)); } }} className="text-red-600 p-1 hover:bg-red-50 rounded-lg transition-all"><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                                                     </div>
                                                 </div>
                                                 <h3 className="font-black text-slate-800 leading-tight">{p.name}</h3>
                                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{p.producer || 'Salumificio Livasì'}</p>
-                                                <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-50 text-xs">
-                                                    <div><p className="text-slate-400 uppercase font-bold text-[8px]">Prezzo</p><p className="font-black text-red-600 text-sm">{p.basePrice.toFixed(2)}€</p></div>
-                                                    <div className="border-x px-2 text-center text-slate-700"><p className="text-slate-400 uppercase font-bold text-[8px]">Costo</p><p className="font-bold">{p.cost.toFixed(2)}€</p></div>
-                                                    <div className="px-2 border-r text-center text-slate-700"><p className="text-slate-400 uppercase font-bold text-[8px]">IVA</p><p className="font-bold text-slate-700">{p.vat}%</p></div>
-                                                    <div className="text-right"><p className="text-slate-400 uppercase font-bold text-[8px]">Shelf Life</p><p className="font-medium text-slate-500 text-[9px]">{p.shelfLife}</p></div>
+                                                <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-50 text-xs text-slate-700 font-bold uppercase">
+                                                    <div><p className="text-[8px] text-slate-400">Prezzo</p><p className="text-red-600">{p.basePrice.toFixed(2)}€</p></div>
+                                                    <div><p className="text-[8px] text-slate-400">Costo</p><p>{p.cost.toFixed(2)}€</p></div>
+                                                    <div><p className="text-[8px] text-slate-400">IVA</p><p>{p.vat}%</p></div>
+                                                    <div className="text-right"><p className="text-[8px] text-slate-400">Shelf</p><p className="font-medium text-[9px]">{p.shelfLife}</p></div>
                                                 </div>
                                             </div>
                                         ))}
@@ -448,58 +388,58 @@
                         )}
                     </main>
 
-                    {/* MODALE EDITOR ANAGRAFICA */}
                     {isAnagraficaEdit && editingProduct && (
                         <div className="fixed inset-0 z-[110] bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-4 animate-fade-in">
                             <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl flex flex-col max-h-[90vh]">
-                                <div className="p-8 border-b border-slate-50 flex justify-between items-center"><h3 className="font-black text-slate-800 text-xl uppercase tracking-tighter">Editor Prodotto</h3><button onClick={() => { setIsAnagraficaEdit(false); setEditingProduct(null); }} className="p-2 border border-slate-100 rounded-full transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+                                <div className="p-8 border-b border-slate-50 flex justify-between items-center"><h3 className="font-black text-slate-800 text-xl uppercase tracking-tighter">Editor Anagrafica</h3><button onClick={() => { setIsAnagraficaEdit(false); setEditingProduct(null); }} className="p-2 border border-slate-100 rounded-full transition-all hover:bg-slate-50"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
                                 <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 custom-scroll">
-                                    <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Nome Articolo</label><input type="text" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-red-500 font-bold" /></div>
-                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Codice</label><input type="text" value={editingProduct.code} onChange={e => setEditingProduct({...editingProduct, code: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" /></div>
-                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Produttore</label><input type="text" value={editingProduct.producer} onChange={e => setEditingProduct({...editingProduct, producer: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" /></div>
-                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Peso al pezzo</label><input type="text" value={editingProduct.weight} onChange={e => setEditingProduct({...editingProduct, weight: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" /></div>
-                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Shelf Life</label><input type="text" value={editingProduct.shelfLife} onChange={e => setEditingProduct({...editingProduct, shelfLife: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" /></div>
-                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">U.M.</label><input type="text" value={editingProduct.unit} onChange={e => setEditingProduct({...editingProduct, unit: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" /></div>
-                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">IVA %</label><input type="number" value={editingProduct.vat} onChange={e => setEditingProduct({...editingProduct, vat: parseInt(e.target.value) || 0})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" /></div>
-                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Costo Produzione (€)</label><input type="number" step="0.01" value={editingProduct.cost} onChange={e => setEditingProduct({...editingProduct, cost: parseFloat(e.target.value) || 0})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" /></div>
-                                    <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Prezzo Base Vendita (€)</label><input type="number" step="0.01" value={editingProduct.basePrice} onChange={e => setEditingProduct({...editingProduct, basePrice: parseFloat(e.target.value) || 0})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-red-600" /></div>
+                                    <div className="md:col-span-2 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Articolo</label><input type="text" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-red-500 font-bold" /></div>
+                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Codice</label><input type="text" value={editingProduct.code} onChange={e => setEditingProduct({...editingProduct, code: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" /></div>
+                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Produttore</label><input type="text" value={editingProduct.producer} onChange={e => setEditingProduct({...editingProduct, producer: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" /></div>
+                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">IVA %</label><input type="number" value={editingProduct.vat} onChange={e => setEditingProduct({...editingProduct, vat: parseInt(e.target.value)||0})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" /></div>
+                                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Costo Produzione (€)</label><input type="number" step="0.01" value={editingProduct.cost} onChange={e => setEditingProduct({...editingProduct, cost: parseFloat(e.target.value)||0})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" /></div>
+                                    <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Prezzo Base Vendita (€)</label><input type="number" step="0.01" value={editingProduct.basePrice} onChange={e => setEditingProduct({...editingProduct, basePrice: parseFloat(e.target.value)||0})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-red-600" /></div>
                                 </div>
-                                <div className="p-8 border-t bg-slate-50/50 flex gap-4"><button onClick={() => { setIsAnagraficaEdit(false); setEditingProduct(null); }} className="flex-1 py-4 border border-slate-200 rounded-2xl font-black text-slate-500 uppercase text-sm">Annulla</button><button onClick={() => saveProduct(editingProduct)} className="flex-1 py-4 bg-red-700 text-white rounded-2xl font-black shadow-xl uppercase text-sm active:scale-95 transition-all">Salva</button></div>
+                                <div className="p-8 border-t bg-slate-50/50 flex gap-4"><button onClick={() => { setIsAnagraficaEdit(false); setEditingProduct(null); }} className="flex-1 py-4 border border-slate-200 rounded-2xl font-black text-slate-500 uppercase tracking-widest active:scale-95 transition-all">Annulla</button><button onClick={async () => {
+                                    if (!user || !window.fb) return;
+                                    const { db, setDoc, doc, appId } = window.fb;
+                                    const pId = editingProduct.id || crypto.randomUUID();
+                                    try {
+                                        await setDoc(doc(db, "artifacts", appId, "public", "data", "products", pId), { ...editingProduct, id: pId });
+                                    } catch(e) { console.error("Salvataggio fallito:", e); }
+                                    setIsAnagraficaEdit(false); setEditingProduct(null);
+                                }} className="flex-1 py-4 bg-red-700 text-white rounded-2xl font-black shadow-xl uppercase active:scale-95 transition-all tracking-widest">Salva</button></div>
                             </div>
                         </div>
                     )}
+                    
                     {isAddingProduct && !isAnagraficaEdit && (
                         <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex items-end md:items-center justify-center p-0 md:p-6 animate-fade-in">
                             <div className="bg-white w-full max-w-xl rounded-t-[3.5rem] md:rounded-[3.5rem] p-10 space-y-8 shadow-2xl overflow-y-auto max-h-[95vh] relative">
-                                <button onClick={() => { setIsAddingProduct(false); setEditingProduct(null); }} className="absolute right-8 top-8 p-2 hover:bg-slate-100 rounded-full transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                                <button onClick={() => { setIsAddingProduct(false); setEditingProduct(null); }} className="absolute right-8 top-8 p-2 hover:bg-slate-100 rounded-full transition-all hover:bg-slate-50"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                                 {editingProduct ? (
                                     <div className="space-y-8 animate-fade-in">
                                         <div className="bg-red-700 p-8 rounded-[3rem] text-white relative shadow-2xl overflow-hidden">
                                             <h4 className="font-black text-2xl leading-tight">{editingProduct.name}</h4>
                                             <p className="text-[10px] font-black text-red-200 mt-2 uppercase tracking-widest">{editingProduct.code} • {editingProduct.weight}</p>
                                         </div>
-                                        <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Costo di Produzione</span><span className="font-bold text-slate-700">{editingProduct.cost?.toFixed(2)} €</span></div>
+                                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-slate-400">Costo di Produzione</span><span className="font-bold text-slate-700">{editingProduct.cost?.toFixed(2)} €</span></div>
                                         <div className="grid grid-cols-2 gap-6">
-                                            <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Prezzo Listino (€)</label><input type="number" step="0.01" className="w-full p-5 bg-white border border-slate-100 rounded-3xl font-black text-2xl text-red-700 outline-none focus:ring-4 focus:ring-red-500/10" value={editingProduct.basePrice} onChange={e => { const v = parseFloat(e.target.value) || 0; const m = editingProduct.cost > 0 ? ((v - editingProduct.cost) / editingProduct.cost * 100).toFixed(2) : 0; setEditingProduct({...editingProduct, basePrice: v, markup: m}); }} /></div>
-                                            <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Rincaro (%)</label><input type="number" className="w-full p-5 bg-white border border-slate-100 rounded-3xl font-black text-2xl outline-none focus:ring-4 focus:ring-red-500/10" value={editingProduct.markup} onChange={e => { const val = parseFloat(e.target.value) || 0; const p = editingProduct.cost * (1 + val/100); setEditingProduct({...editingProduct, basePrice: p.toFixed(2), markup: val}); }} /></div>
-                                            {listType === 'discount' && (
-                                                <div className="col-span-2 space-y-2 bg-blue-50/50 p-6 rounded-[2.5rem] border border-blue-100"><label className="text-[10px] font-black text-blue-500 uppercase tracking-widest text-center block">Sconto (%)</label><input type="number" className="w-full p-5 bg-white border border-blue-200 rounded-3xl font-black text-2xl text-blue-700 outline-none text-center" value={editingProduct.discount} onChange={e => setEditingProduct({...editingProduct, discount: parseFloat(e.target.value) || 0})} /></div>
-                                            )}
+                                            <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Prezzo Listino (€)</label><input type="number" step="0.01" className="w-full p-5 bg-white border border-slate-100 rounded-3xl font-black text-2xl text-red-700 outline-none focus:ring-4 focus:ring-red-500/10" value={editingProduct.basePrice} onChange={e => setEditingProduct({...editingProduct, basePrice: parseFloat(e.target.value)||0})} /></div>
+                                            {listType === 'discount' && <div className="space-y-2"><label className="text-[10px] font-black text-blue-500 uppercase ml-2 tracking-widest block text-center">Sconto (%)</label><input type="number" className="w-full p-5 bg-white border border-blue-200 rounded-3xl font-black text-2xl text-blue-700 outline-none text-center" value={editingProduct.discount} onChange={e => setEditingProduct({...editingProduct, discount: parseFloat(e.target.value)||0})} /></div>}
                                         </div>
-                                        <button onClick={() => {
-                                            if (editingListIndex !== null) { const newList = [...selectedProducts]; newList[editingListIndex] = editingProduct; setSelectedProducts(newList); } else { setSelectedProducts([...selectedProducts, editingProduct]); } setIsAddingProduct(false); setEditingProduct(null); setEditingListIndex(null);
-                                        }} className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all">CONFERMA</button>
+                                        <button onClick={() => { setSelectedProducts([...selectedProducts, editingProduct]); setIsAddingProduct(false); setEditingProduct(null); }} className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all tracking-widest">CONFERMA E AGGIUNGI</button>
                                     </div>
                                 ) : (
                                     <div className="space-y-6 animate-fade-in">
-                                        <h3 className="font-black uppercase tracking-widest text-sm text-slate-400">Aggiungi dal Listino</h3>
-                                        <div className="flex flex-col sm:flex-row gap-3">
-                                            <div className="flex-1 relative"><input type="text" className="w-full p-4 bg-slate-100 border-none rounded-2xl outline-none font-bold" placeholder="Cerca..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></div>
-                                            <select className="bg-slate-100 border-none rounded-2xl px-4 py-4 outline-none font-bold text-xs uppercase" value={producerFilter} onChange={e => setProducerFilter(e.target.value)}>{producersList.map(p => <option key={p} value={p}>{p}</option>)}</select>
+                                        <h3 className="font-black uppercase tracking-widest text-sm text-slate-400 text-center tracking-widest uppercase">Ricerca Prodotto</h3>
+                                        <div className="flex gap-2">
+                                            <input type="text" className="flex-1 p-4 bg-slate-100 border-none rounded-2xl outline-none font-bold" placeholder="Cerca..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                            <select className="bg-slate-100 border-none rounded-2xl px-4 py-4 outline-none font-bold text-xs uppercase" value={producerFilter} onChange={e => setProducerFilter(e.target.value)}>{producers.map(p => <option key={p} value={p}>{p}</option>)}</select>
                                         </div>
                                         <div className="space-y-2 max-h-[50vh] overflow-y-auto custom-scroll pr-2">
-                                            {filteredForSelection.map(p => (
-                                                <button key={p.id} onClick={() => setEditingProduct({...p, discount: 10, markup: p.cost > 0 ? ((p.basePrice - p.cost) / p.cost * 100).toFixed(2) : 0})} className="w-full flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-red-500 transition-all text-left group"><div><p className="text-[9px] font-black text-slate-300 uppercase mb-1">{p.code}</p><h4 className="font-black text-slate-800 group-hover:text-red-700 text-sm leading-tight">{p.name}</h4><p className="text-[9px] text-slate-400 italic">{p.producer || 'Salumificio Livasì'}</p></div><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:stroke-red-300 group-hover:translate-x-1 transition-all"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                                            {filteredProducts.map(p => (
+                                                <button key={p.id} onClick={() => setEditingProduct({...p, discount: 10})} className="w-full flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-red-500 transition-all text-left group"><div><p className="text-[9px] font-black text-slate-300 uppercase mb-1">{p.code}</p><h4 className="font-black text-slate-800 group-hover:text-red-700">{p.name}</h4><p className="text-[9px] text-slate-400 italic">{p.producer || 'Salumificio Livasì'}</p></div><span className="text-slate-300 font-black">+</span></button>
                                             ))}
                                         </div>
                                     </div>
